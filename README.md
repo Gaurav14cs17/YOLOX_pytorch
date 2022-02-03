@@ -3,5 +3,5 @@ YOLOX
 
 
 ## Reference
-https://github.com/Megvii-BaseDetection/YOLOX
-https://github.com/PaddlePaddle/PaddleDetection
+1.https://github.com/Megvii-BaseDetection/YOLOX
+2.https://github.com/PaddlePaddle/PaddleDetection
