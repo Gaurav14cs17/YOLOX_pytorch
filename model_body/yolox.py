@@ -1,8 +1,8 @@
 import torch
 from torch import nn
-from models.backbone.draknet import CSPDarknet
-from models.neck.pa_fpn import YOLO_PA_FPN
-from models.head.yolox_head import YOLOX_Head
+from backbone.draknet import CSPDarknet
+from neck.pa_fpn import YOLO_PA_FPN
+from head.yolox_head import YOLOX_Head
 
 
 class YoloBody(nn.Module):

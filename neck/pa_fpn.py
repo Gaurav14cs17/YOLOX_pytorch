@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-from models.backbone.draknet import BaseConv, CSPLayer, DWConv
+from backbone.draknet import BaseConv, CSPLayer, DWConv
 
 
 class YOLO_PA_FPN(nn.Module):

@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-from models.backbone.draknet import BaseConv, DWConv
+from backbone.draknet import BaseConv, DWConv
 
 
 class YOLOX_Head(nn.Module):

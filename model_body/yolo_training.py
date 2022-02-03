@@ -51,61 +51,56 @@ class IOUloss(nn.Module):
 
 
 class YOLOLOSS(nn.Module):
-    def __init__(self, num_classes, strides=None):
-        super(YOLOLOSS, self).__init__()
-        if strides is None:
-            strides = [8, 16, 32]
+    def __init__(self, num_classes, strides=[8, 16, 32]):
+        '''
+          stride = [640/20 =32 , 640/40 = 16 , 640/80 = 8 ]
+        '''
+        super().__init__()
         self.num_classes = num_classes
         self.strides = strides
 
         self.bcewithlog_loss = nn.BCEWithLogitsLoss(reduction="none")
-        self.iou_loss = IOUloss(reduction='none')
+        self.iou_loss = IOUloss(reduction="none")
         self.grids = [torch.zeros(1)] * len(strides)
 
-    def forwards(self, inputs, labels=None):
+    def forward(self, inputs, labels=None):
         outputs = []
         x_shifts = []
-        y_shits = []
-        expandes_strides = []
+        y_shifts = []
+        expanded_strides = []
 
         # -----------------------------------------------#
         # inputs    [[batch_size, num_classes + 5, 20, 20]
         #            [batch_size, num_classes + 5, 40, 40]
         #            [batch_size, num_classes + 5, 80, 80]]
-
         # outputs   [[batch_size, 400, num_classes + 5]
         #            [batch_size, 1600, num_classes + 5]
         #            [batch_size, 6400, num_classes + 5]]
-
         # x_shifts  [[batch_size, 400]
         #            [batch_size, 1600]
         #            [batch_size, 6400]]
-
         # -----------------------------------------------#
+        for k, (stride, output) in enumerate(zip(self.strides, inputs)):
+            output, grid = self.get_output_and_grid(output, k, stride)
+            x_shifts.append(grid[:, :, 0])
+            y_shifts.append(grid[:, :, 1])
+            expanded_strides.append(torch.ones_like(grid[:, :, 0]) * stride)
+            outputs.append(output)
 
-        for k, (stride, output) in enumerate(self.strides, inputs):
-            output , grid = self.get_output_and_grid(output,k,stride)
-            x_shifts.append(grid[:,:,0])
-            y_shits.append(grid[:,:,1])
-            expandes_strides.append(torch.ones_like(grid[:,:,0])*stride)
-            output.append(output)
-        return self.get_losses(x_shifts ,y_shits ,expandes_strides , labels , torch.cat(outputs,1))
-
-
+        return self.get_losses(x_shifts, y_shifts, expanded_strides, labels, torch.cat(outputs, 1))
 
     def get_output_and_grid(self, output, k, stride):
         grid = self.grids[k]
-        hsize, wsize = output.shape[:-2]
-        if grid.shape[:2] != output.shape[2:4]:
+        hsize, wsize = output.shape[-2:]
+        if grid.shape[2:4] != output.shape[2:4]:
             yv, xv = torch.meshgrid([torch.arange(hsize), torch.arange(wsize)])
-            grid = torch.stack((xv, yv), 2)
-            grid = grid.view(1, hsize, wsize, 2).type(output.type())
+            grid = torch.stack((xv, yv), 2).view(1, hsize, wsize, 2).type(output.type())
             self.grids[k] = grid
-
         grid = grid.view(1, -1, 2)
+
         output = output.flatten(start_dim=2).permute(0, 2, 1)
-        output[...,:2] = (output[...,:2] + grid )*stride
-        output[...,2:4] = torch.exp(output[...,2:4])*stride
+        output[..., :2] = (output[..., :2] + grid) * stride
+        output[..., 2:4] = torch.exp(output[..., 2:4]) * stride
         return output, grid
 
     def get_losses(self, x_shifts, y_shifts, expanded_strides, labels, outputs):
@@ -128,23 +123,23 @@ class YOLOLOSS(nn.Module):
         #   y_shifts            [1, n_anchors_all]
         #   expanded_strides    [1, n_anchors_all]
         # -----------------------------------------------#
-
-        x_shifts = torch.cat(x_shifts,1)
-        y_shifts = torch.cat(y_shifts,1)
-        expanded_strides = torch.cat(expanded_strides ,1)
+        x_shifts = torch.cat(x_shifts, 1)
+        y_shifts = torch.cat(y_shifts, 1)
+        expanded_strides = torch.cat(expanded_strides, 1)
 
         cls_targets = []
         reg_targets = []
         obj_targets = []
         fg_masks = []
+
         num_fg = 0.0
         for batch_idx in range(outputs.shape[0]):
             num_gt = len(labels[batch_idx])
             if num_gt == 0:
-                cls_targets = outputs.new_zeros((0,self.num_classes))
-                reg_targets = outputs.new_zeros((0,4))
-                obj_targets = outputs.new_zeros((total_num_anchors,1))
-                fg_masks =    outputs.new_zeros(total_num_anchors).bool()
+                cls_target = outputs.new_zeros((0, self.num_classes))
+                reg_target = outputs.new_zeros((0, 4))
+                obj_target = outputs.new_zeros((total_num_anchors, 1))
+                fg_mask = outputs.new_zeros(total_num_anchors).bool()
             else:
                 # -----------------------------------------------#
                 #   gt_bboxes_per_image     [num_gt, num_classes]
@@ -153,10 +148,8 @@ class YOLOLOSS(nn.Module):
                 #   cls_preds_per_image     [n_anchors_all, num_classes]
                 #   obj_preds_per_image     [n_anchors_all, 1]
                 # -----------------------------------------------#
-
-                gt_bboxes_per_image = labels[batch_idx][...,:4]
-                gt_classes = labels[batch_idx][...,4]
-
+                gt_bboxes_per_image = labels[batch_idx][..., :4]
+                gt_classes = labels[batch_idx][..., 4]
                 bboxes_preds_per_image = bbox_preds[batch_idx]
                 cls_preds_per_image = cls_preds[batch_idx]
                 obj_preds_per_image = obj_preds[batch_idx]
@@ -363,11 +356,17 @@ class YOLOLOSS(nn.Module):
             _, pos_idx = torch.topk(cost[gt_idx], k=dynamic_ks[gt_idx].item(), largest=False)
             matching_matrix[gt_idx][pos_idx] = 1.0
         del topk_ious, dynamic_ks, pos_idx
+
+        # ------------------------------------------------------------#
+        #   anchor_matching_gt  [fg_mask]
+        # ------------------------------------------------------------#
         anchor_matching_gt = matching_matrix.sum(0)
         if (anchor_matching_gt > 1).sum() > 0:
+
             _, cost_argmin = torch.min(cost[:, anchor_matching_gt > 1], dim=0)
             matching_matrix[:, anchor_matching_gt > 1] *= 0.0
             matching_matrix[cost_argmin, anchor_matching_gt > 1] = 1.0
+
         fg_mask_inboxes = matching_matrix.sum(0) > 0.0
         num_fg = fg_mask_inboxes.sum().item()
         fg_mask[fg_mask.clone()] = fg_mask_inboxes
@@ -398,9 +397,3 @@ def weights_init(net, init_type='normal', init_gain=0.02):
 
     print('initialize network with %s type' % init_type)
     net.apply(init_func)
-
-
-
-
-
-
