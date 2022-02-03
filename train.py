@@ -42,13 +42,19 @@ if __name__ == "__main__":
         model_dict.update(pretrained_dict)
         model.load_state_dict(model_dict)
 
+    # torch.Size([32, 25, 40, 40])
+    # torch.Size([32, 25, 20, 20])
+    # torch.Size([32, 25, 10, 10])
+
     model_train = model.train()
     if Cuda:
         model_train = torch.nn.DataParallel(model)
         cudnn.benchmark = True
         model_train = model_train.cuda()
 
-    yolo_loss = YOLOLOSS(num_classes)
+
+    strides = [8,16 , 32  ] # [320/40 , 320/20 ,320/10]
+    yolo_loss = YOLOLOSS(num_classes , strides=strides)
     loss_history = LossHistory("logs/")
     with open(train_annotation_path) as f:
         train_lines = f.readlines()

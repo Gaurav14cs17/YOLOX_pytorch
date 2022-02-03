@@ -53,7 +53,11 @@ class IOUloss(nn.Module):
 class YOLOLOSS(nn.Module):
     def __init__(self, num_classes, strides=[8, 16, 32]):
         '''
-          stride = [640/20 =32 , 640/40 = 16 , 640/80 = 8 ]
+        torch.Size([32, 25, 40, 40])
+        torch.Size([32, 25, 20, 20])
+        torch.Size([32, 25, 10, 10])
+          stride = Image input_size / feature_matrix_size
+          stride = [320/40 = 8 , 320/20 = 16, 320/10 = 32 ]
         '''
         super().__init__()
         self.num_classes = num_classes
