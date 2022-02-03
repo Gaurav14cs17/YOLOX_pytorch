@@ -9,7 +9,7 @@ trainval_percent = 0.9
 train_percent = 0.9
 
 VOCdevkit_path = 'D:/labs/object_detection_model/VOCdevkit/'
-VOCdevkit_sets = [('2007', 'train'), ('2007', 'val')]
+VOCdevkit_sets = [('2012', 'train'), ('2012', 'val')]
 classes, _ = get_classes(classes_path)
 
 
@@ -45,6 +45,7 @@ if __name__ == "__main__":
                 total_xml.append(xml)
 
         num = len(total_xml)
+        print("total xml file" , num )
         list = range(num)
         tv = int(num * trainval_percent)
         tr = int(tv * train_percent)

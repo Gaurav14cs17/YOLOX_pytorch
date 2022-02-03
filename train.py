@@ -1,11 +1,9 @@
-
 import numpy as np
 import torch
 import torch.backends.cudnn as cudnn
 import torch.optim as optim
 from torch.utils.data import DataLoader
 from model_body.yolox import YoloBody
-
 from model_body.yolo_training import YOLOLOSS, weights_init
 from utils.callbacks import LossHistory
 from data_loader.dataloader import YoloDataset, yolo_dataset_collate
@@ -29,8 +27,8 @@ if __name__ == "__main__":
 
 
     num_workers = 1
-    train_annotation_path = 'model_data/2007_train.txt'
-    val_annotation_path = 'model_data/2007_val.txt'
+    train_annotation_path = 'model_data/2012_train.txt'
+    val_annotation_path = 'model_data/2012_val.txt'
 
     class_names, num_classes = get_classes(classes_path)
     model = YoloBody(num_classes, phi)
@@ -97,7 +95,7 @@ if __name__ == "__main__":
 
     if UnFreeze_Train:
         UnFreeze_Epoch = 100
-        Unfreeze_batch_size = 4
+        Unfreeze_batch_size = 32
         Unfreeze_lr = 1e-4
 
         print("model train from skreach")
