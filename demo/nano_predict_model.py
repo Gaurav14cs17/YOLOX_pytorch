@@ -5,8 +5,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 from PIL import ImageDraw, ImageFont, Image
-#from model_body.yolox import YoloBody
-from  model_body.Esnet_Pa_fpn_yolx import YoloBody
+from model_body.yolox import YoloBody
 from utils.utils import cvtColor, get_classes, preprocess_input, resize_image
 from utils.utils_bbox import decode_outputs, non_max_suppression
 import cv2
@@ -47,8 +46,7 @@ class YOLO(object):
         self.generate()
 
     def generate(self):
-        #self.net = YoloBody(self.num_classes, self.phi)
-        self.net = YoloBody(self.num_classes)
+        self.net = YoloBody(self.num_classes, self.phi)
         device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         self.net.load_state_dict(torch.load(self.model_path, map_location=device))
         self.net = self.net.eval()

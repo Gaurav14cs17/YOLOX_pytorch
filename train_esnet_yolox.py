@@ -13,7 +13,7 @@ from utils.utils_fit import fit_one_epoch
 if __name__ == "__main__":
     Cuda = True
     classes_path = 'model_data/voc_classes.txt'
-    model_path = ''
+    model_path = 'logs/ep038-loss7.294-val_loss7.180.pth'
     input_shape = [320, 320]
     phi = 'nano'
     mosaic = False
@@ -31,7 +31,7 @@ if __name__ == "__main__":
     val_annotation_path = 'model_data/2012_val.txt'
 
     class_names, num_classes = get_classes(classes_path)
-    model = YoloBody(num_classes, phi)
+    model = YoloBody(num_classes)
     weights_init(model)
     if model_path != '':
         print('Load weights {}.'.format(model_path))
@@ -101,7 +101,7 @@ if __name__ == "__main__":
 
     if UnFreeze_Train:
         UnFreeze_Epoch = 100
-        Unfreeze_batch_size = 32
+        Unfreeze_batch_size = 16
         Unfreeze_lr = 1e-4
 
         print("model train from skreach")
