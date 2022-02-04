@@ -10,10 +10,12 @@ from data_loader.dataloader import YoloDataset, yolo_dataset_collate
 from utils.utils import get_classes
 from utils.utils_fit import fit_one_epoch
 
+#torch.cuda.amp.GradScaler(enabled=True)
+
 if __name__ == "__main__":
     Cuda = True
     classes_path = 'model_data/voc_classes.txt'
-    model_path = ''
+    model_path = 'logs/ep015-loss11.303-val_loss10.941.pth'
     input_shape = [320, 320]
     phi = 'nano'
     mosaic = False
