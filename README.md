@@ -1,5 +1,6 @@
 # YOLOX
-YOLOX is an anchor-free version of YOLO, with a simpler design but better performance! It aims to bridge the gap between research and industrial communities. For more details, please refer to our report on Arxiv(https://arxiv.org/abs/2107.08430).
+YOLOX is an anchor-free version of YOLO
+Paper Arxiv(https://arxiv.org/abs/2107.08430).
 
 
 ![Logo](https://github.com/Gaurav14cs17/YOLOX_pytorch/blob/main/output/1_Igh61mg6Qi6te_YJaQvO5w.png)
