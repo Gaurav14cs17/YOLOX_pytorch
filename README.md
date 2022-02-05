@@ -7,8 +7,8 @@ Paper Arxiv(https://arxiv.org/abs/2107.08430)
 
 
 ## Image-output
-![Nano](https://github.com/Gaurav14cs17/YOLOX_pytorch/blob/main/output/nano_img_out/000026.jpg)
-![Nano](https://github.com/Gaurav14cs17/YOLOX_pytorch/blob/main/output/nano_img_out/000054.jpg)
+![Nano](https://github.com/Gaurav14cs17/YOLOX_pytorch/blob/main/data/nano_img_out/000026.jpg)
+![Nano](https://github.com/Gaurav14cs17/YOLOX_pytorch/blob/main/data/nano_img_out/000054.jpg)
 
 
 ## Train model
