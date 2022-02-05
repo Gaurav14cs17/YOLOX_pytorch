@@ -1,4 +1,5 @@
 <div align="center"><img src="https://github.com/Gaurav14cs17/YOLOX_pytorch/blob/main/output/1_Igh61mg6Qi6te_YJaQvO5w.png" width="350"></div>
+
 ## YOLOX
 YOLOX is an anchor-free version of YOLO
 Paper Arxiv(https://arxiv.org/abs/2107.08430).
