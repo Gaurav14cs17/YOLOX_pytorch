@@ -1,6 +1,8 @@
+import os
+os.environ["CUDA_LAUNCH_BLOCKING"] = "1"
+
 import numpy as np
 import torch
-import torch.nn as nn
 import torch.backends.cudnn as cudnn
 import torch.optim as optim
 from torch.utils.data import DataLoader
@@ -39,7 +41,7 @@ if __name__ == "__main__":
     Freeze_Train = False
     UnFreeze_Train = True
     UnFreeze_Epoch = 100
-    Unfreeze_batch_size = 32
+    Unfreeze_batch_size = 16
     Unfreeze_lr = 1e-4
 
     scheduler = "yoloxwarmcos"

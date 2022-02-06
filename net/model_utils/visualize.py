@@ -89,17 +89,18 @@ _COLORS = np.array(
 ).astype(np.float32).reshape(-1, 3)
 
 
-def vis(img, boxes, scores, cls_ids, conf=0.5, class_names=None):
+def vis(img, boxes, shape, scores, cls_ids, conf=0.5, class_names=None):
     for i in range(len(boxes)):
         box = boxes[i]
         cls_id = int(cls_ids[i])
         score = scores[i]
         if score < conf:
             continue
-        x0 = int(box[0])
-        y0 = int(box[1])
-        x1 = int(box[2])
-        y1 = int(box[3])
+        x0 = int(box[0]*shape[0])
+        y0 = int(box[1]*shape[1])
+
+        x1 = int(box[2]*shape[0])
+        y1 = int(box[3]*shape[1])
 
         color = (_COLORS[cls_id] * 255).astype(np.uint8).tolist()
         text = '{}:{:.1f}%'.format(class_names[cls_id], score * 100)

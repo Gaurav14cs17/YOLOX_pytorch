@@ -11,7 +11,8 @@ def cvtColor(image):
 
 
 def resize_image(image, size, letterbox_image):
-    iw, ih = image.size
+    print(image.shape)
+    iw, ih ,_ = image.shape
     w, h = size
     if letterbox_image:
         scale = min(w / iw, h / ih)
@@ -22,6 +23,7 @@ def resize_image(image, size, letterbox_image):
         new_image.paste(image, ((w - nw) // 2, (h - nh) // 2))
     else:
         new_image = image.resize((w, h), Image.BICUBIC)
+        cv2.resize()
     return new_image
 
 

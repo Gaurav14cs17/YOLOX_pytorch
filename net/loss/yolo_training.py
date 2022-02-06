@@ -73,6 +73,7 @@ class YOLOLOSS(nn.Module):
         y_shifts = []
         expanded_strides = []
 
+
         # -----------------------------------------------#
         # inputs    [[batch_size, num_classes + 5, 20, 20]
         #            [batch_size, num_classes + 5, 40, 40]
@@ -85,6 +86,7 @@ class YOLOLOSS(nn.Module):
         #            [batch_size, 6400]]
         # -----------------------------------------------#
         for k, (stride, output) in enumerate(zip(self.strides, inputs)):
+            output = output.clamp(0, 1)
             output, grid = self.get_output_and_grid(output, k, stride)
             x_shifts.append(grid[:, :, 0])
             y_shifts.append(grid[:, :, 1])
@@ -219,11 +221,8 @@ class YOLOLOSS(nn.Module):
         #   cls_preds_          [num_gt, fg_mask, num_classes]
         #   gt_cls_per_image    [num_gt, fg_mask, num_classes]
         # -------------------------------------------------------#
-        cls_preds_ = cls_preds_.float().unsqueeze(0).repeat(num_gt, 1, 1).sigmoid_() * obj_preds_.unsqueeze(0).repeat(
-            num_gt, 1, 1).sigmoid_()
-        gt_cls_per_image = F.one_hot(gt_classes.to(torch.int64), self.num_classes).float().unsqueeze(1).repeat(1,
-                                                                                                               num_in_boxes_anchor,
-                                                                                                               1)
+        cls_preds_ = cls_preds_.float().unsqueeze(0).repeat(num_gt, 1, 1).sigmoid_() * obj_preds_.unsqueeze(0).repeat(num_gt, 1, 1).sigmoid_()
+        gt_cls_per_image = F.one_hot(gt_classes.to(torch.int64), self.num_classes).float().unsqueeze(1).repeat(1,num_in_boxes_anchor,1)
         pair_wise_cls_loss = F.binary_cross_entropy(cls_preds_.sqrt_(), gt_cls_per_image, reduction="none").sum(-1)
         del cls_preds_
 
