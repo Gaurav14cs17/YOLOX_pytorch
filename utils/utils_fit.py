@@ -4,7 +4,7 @@ from utils.utils import get_lr
 
 
 def fit_one_epoch(model_train, model, yolo_loss, loss_history, optimizer, epoch, epoch_step, epoch_step_val, gen,
-                  gen_val, Epoch, cuda):
+                  gen_val, Epoch, cuda , scaler , data_type, use_fp16 = False):
     loss = 0
     val_loss = 0
     model_train.train()
@@ -15,16 +15,20 @@ def fit_one_epoch(model_train, model, yolo_loss, loss_history, optimizer, epoch,
                 break
 
             images, targets = batch[0], batch[1]
+
             with torch.no_grad():
                 if cuda:
-                    images = torch.from_numpy(images).type(torch.FloatTensor).cuda()
-                    targets = [torch.from_numpy(ann).type(torch.FloatTensor).cuda() for ann in targets]
+                    images = torch.from_numpy(images).to(data_type).cuda()
+                    targets = [torch.from_numpy(ann).to(data_type).cuda() for ann in targets]
+
                 else:
-                    images = torch.from_numpy(images).type(torch.FloatTensor)
-                    targets = [torch.from_numpy(ann).type(torch.FloatTensor) for ann in targets]
+                    images = torch.from_numpy(images).to(data_type)
+                    targets = [torch.from_numpy(ann).to(data_type) for ann in targets]
 
             optimizer.zero_grad()
-            outputs = model_train(images)
+
+            with torch.cuda.amp.autocast(enabled=use_fp16):
+                outputs = model_train(images)
 
             # print("\n")
             # for x in outputs :
@@ -32,9 +36,17 @@ def fit_one_epoch(model_train, model, yolo_loss, loss_history, optimizer, epoch,
             # print("\n")
 
             loss_value = yolo_loss(outputs, targets)
-            loss_value.backward()
-            optimizer.step()
+            if use_fp16 :
+                optimizer.zero_grad()
+                scaler.scale(loss_value).backward()
+                scaler.step(optimizer)
+                scaler.update()
+            else:
+                loss_value.backward()
+                optimizer.step()
+
             loss += loss_value.item()
+           # lr = self.lr_scheduler.update_lr(self.progress_in_iter + 1)
             pbar.set_postfix(**{'loss': loss / (iteration + 1),'lr': get_lr(optimizer)})
             pbar.update(1)
 

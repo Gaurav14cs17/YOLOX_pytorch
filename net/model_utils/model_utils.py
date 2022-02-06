@@ -5,7 +5,7 @@ from thop import profile
 
 __all__ = [
     "fuse_conv_and_bn",
-    "fuse_model",
+    #"fuse_model",
     "get_model_info",
     "replace_module",
 ]

@@ -4,9 +4,10 @@ import torch.backends.cudnn as cudnn
 import torch.optim as optim
 from torch.utils.data import DataLoader
 from model_body.Esnet_Pa_fpn_yolx import YoloBody
+from data_loader.dataloader import YoloDataset, yolo_dataset_collate
 from model_body.yolo_training import YOLOLOSS, weights_init
 from utils.callbacks import LossHistory
-from data_loader.dataloader import YoloDataset, yolo_dataset_collate
+
 from utils.utils import get_classes
 from utils.utils_fit import fit_one_epoch
 

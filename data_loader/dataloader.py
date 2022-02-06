@@ -36,8 +36,8 @@ class YoloDataset(Dataset):
         else:
             image, box = self.get_random_data(self.annotation_lines[index], self.input_shape, random=self.train)
 
-        image = np.transpose(preprocess_input(np.array(image, dtype=np.float32)), (2, 0, 1))
-        box = np.array(box, dtype=np.float32)
+        image = np.transpose(preprocess_input(np.array(image, dtype=np.float16)), (2, 0, 1))
+        box = np.array(box, dtype=np.float16)
 
         if len(box) != 0:
             box[:, 2:4] = box[:, 2:4] - box[:, 0:2]
