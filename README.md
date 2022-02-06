@@ -1,4 +1,4 @@
-<div align="center"><img src="https://github.com/Gaurav14cs17/YOLOX_pytorch/blob/main/data/1_Igh61mg6Qi6te_YJaQvO5w.png" width="350"></div>
+<div align="center"><img src="https://github.com/Gaurav14cs17/SSD_Pytorch/blob/main/etc/ssd_image.png" width="350"></div>
 
 
 # YOLOX
