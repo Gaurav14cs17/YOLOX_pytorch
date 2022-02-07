@@ -1,6 +1,3 @@
-import os
-os.environ["CUDA_LAUNCH_BLOCKING"] = "1"
-
 import numpy as np
 import torch
 import torch.backends.cudnn as cudnn
@@ -12,22 +9,6 @@ from net.loss.yolo_training import YOLOLOSS, weights_init
 from utils.callbacks import LossHistory
 from utils.utils import get_classes
 from utils.utils_fit import fit_one_epoch
-from net.model_utils.lr_scheduler import *
-
-
-
-def get_lr_scheduler(scheduler ,max_epoch , lr, iters_per_epoch):
-    scheduler = LRScheduler(
-        scheduler,
-        lr,
-        iters_per_epoch,
-        max_epoch,
-        warmup_epochs=5,
-        warmup_lr_start=0,
-        no_aug_epochs=15,
-        min_lr_ratio=0.05,
-    )
-    return scheduler
 
 if __name__ == "__main__":
     Cuda = True
@@ -37,35 +18,29 @@ if __name__ == "__main__":
     phi = 'nano'
     mosaic = False
     Cosine_scheduler = False
-
     Freeze_Train = False
     UnFreeze_Train = True
-    UnFreeze_Epoch = 100
-    Unfreeze_batch_size = 16
-    Unfreeze_lr = 1e-4
 
-    scheduler = "yoloxwarmcos"
-    basic_lr_per_img = (0.01 / 64.0)*Unfreeze_batch_size
-
-
-    use_fp16 = True
-    scaler = torch.cuda.amp.GradScaler(enabled=use_fp16)
-    data_type = torch.float16 if use_fp16 else torch.float32
-
-
-
-
+    # use_fp16 = True #it's not work 
+    # scaler = torch.cuda.amp.GradScaler(enabled=use_fp16)
+    # data_type = torch.float16 if use_fp16 else torch.float32
 
     num_workers = 1
     train_annotation_path = 'model_data/2012_train.txt'
     val_annotation_path = 'model_data/2012_val.txt'
 
+    UnFreeze_Epoch = 100
+    Unfreeze_batch_size = 16
+    Unfreeze_lr = 1e-4
+
+
+
+
     class_names, num_classes = get_classes(classes_path)
     model = ES_YoloBody(num_classes)
     weights_init(model)
 
-    # with torch.cuda.amp.autocast(enabled=use_fp16):
-    #     model = model(inps, targets)
+
 
     if model_path != '':
         print('Load weights {}.'.format(model_path))
@@ -97,35 +72,36 @@ if __name__ == "__main__":
     num_train = len(train_lines)
     num_val = len(val_lines)
 
-    #lr_scheduler = get_lr_scheduler(scheduler, UnFreeze_Epoch, basic_lr_per_img, num_train)
-    if UnFreeze_Train:
-        print("model train from skreach")
-        batch_size = Unfreeze_batch_size
-        lr = Unfreeze_lr
-        start_epoch = 0
-        end_epoch = UnFreeze_Epoch
-        epoch_step = num_train // batch_size
-        epoch_step_val = num_val // batch_size
-        if epoch_step == 0 or epoch_step_val == 0:
-            raise ValueError("error")
+    print("model train from skreach")
+    batch_size = Unfreeze_batch_size
+    lr = Unfreeze_lr
+    start_epoch = 0
+    end_epoch = UnFreeze_Epoch
+    epoch_step = num_train // batch_size
+    epoch_step_val = num_val // batch_size
+    if epoch_step == 0 or epoch_step_val == 0:
+        raise ValueError("error")
 
-        optimizer = optim.Adam(model_train.parameters(), lr, weight_decay=5e-4)
-        if Cosine_scheduler:
-            lr_scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=5, eta_min=1e-5)
-        else:
-            lr_scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=1, gamma=0.92)
 
-        train_dataset = YoloDataset(train_lines, input_shape, num_classes, end_epoch - start_epoch, mosaic=mosaic,train=True)
-        val_dataset = YoloDataset(val_lines, input_shape, num_classes, end_epoch - start_epoch, mosaic=False,train=False)
 
-        gen = DataLoader(train_dataset, shuffle=True, batch_size=batch_size, num_workers=num_workers, pin_memory=True,drop_last=True, collate_fn=yolo_dataset_collate)
-        gen_val = DataLoader(val_dataset, shuffle=True, batch_size=batch_size, num_workers=num_workers, pin_memory=True,drop_last=True, collate_fn=yolo_dataset_collate)
 
-        # if UnFreeze_Train:
-        #     for param in model.backbone.parameters():
-        #         param.requires_grad = True
 
-        for epoch in range(start_epoch, end_epoch):
-            fit_one_epoch(model_train, model, yolo_loss, loss_history, optimizer, epoch,
-                          epoch_step, epoch_step_val, gen, gen_val, end_epoch, Cuda , scaler , data_type ,use_fp16=use_fp16)
-            lr_scheduler.step()
+
+
+    optimizer = optim.Adam(model_train.parameters(), lr, weight_decay=5e-4)
+    if Cosine_scheduler:
+        lr_scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=5, eta_min=1e-5)
+    else:
+        lr_scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=1, gamma=0.92)
+
+    train_dataset = YoloDataset(train_lines, input_shape, num_classes, end_epoch - start_epoch, mosaic=mosaic,train=True)
+    val_dataset = YoloDataset(val_lines, input_shape, num_classes, end_epoch - start_epoch, mosaic=False,train=False)
+
+    gen = DataLoader(train_dataset, shuffle=True, batch_size=batch_size, num_workers=num_workers, pin_memory=True,drop_last=True, collate_fn=yolo_dataset_collate)
+    gen_val = DataLoader(val_dataset, shuffle=True, batch_size=batch_size, num_workers=num_workers, pin_memory=True,drop_last=True, collate_fn=yolo_dataset_collate)
+
+    for epoch in range(start_epoch, end_epoch):
+        fit_one_epoch(model_train, model, yolo_loss, loss_history, optimizer, epoch,
+                      epoch_step, epoch_step_val, gen, gen_val, end_epoch, Cuda ) #, scaler ,data_type ,use_fp16 )
+        lr_scheduler.step()
+
