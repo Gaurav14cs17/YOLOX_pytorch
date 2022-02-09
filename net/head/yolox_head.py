@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+import numpy as np
 from net.backbone.draknet import BaseConv, DWConv
 
 
@@ -10,6 +11,7 @@ class YOLOX_Head(nn.Module):
             in_channels = [256, 512, 1024]
         Conv = DWConv if depthwise else BaseConv
 
+        self.n_anchors = 1
         self.cls_convs = nn.ModuleList()
         self.reg_convs = nn.ModuleList()
         self.cls_preds = nn.ModuleList()
@@ -18,7 +20,9 @@ class YOLOX_Head(nn.Module):
         self.stems = nn.ModuleList()
 
         for i in range(len(in_channels)):
-            self.stems.append(BaseConv(in_channels=int(in_channels[i] * width), out_channels=int(256 * width), ksize=1, stride=1,act=act))
+            self.stems.append(
+                BaseConv(in_channels=int(in_channels[i] * width), out_channels=int(256 * width), ksize=1, stride=1,
+                         act=act))
             self.cls_convs.append(nn.Sequential(*[
                 Conv(in_channels=int(256 * width), out_channels=int(256 * width), ksize=3, stride=1, act=act),
                 Conv(in_channels=int(256 * width), out_channels=int(256 * width), ksize=3, stride=1, act=act),
@@ -75,3 +79,35 @@ class YOLOX_Head(nn.Module):
             output = torch.cat([reg_output, obj_output, cls_output], 1)
             outputs.append(output)
         return outputs
+
+    def init_weights(self, prior_prob=1e-2):
+        for m in self.modules():
+            if isinstance(m, nn.BatchNorm2d):
+                m.eps = 1e-3
+                m.momentum = 0.03
+
+        for conv in self.cls_preds:
+            b = conv.bias.view(self.n_anchors, -1)
+            b.data.fill_(-np.math.log((1 - prior_prob) / prior_prob))
+            conv.bias = torch.nn.Parameter(b.view(-1), requires_grad=True)
+
+        for conv in self.obj_preds:
+            b = conv.bias.view(self.n_anchors, -1)
+            b.data.fill_(-np.math.log((1 - prior_prob) / prior_prob))
+            conv.bias = torch.nn.Parameter(b.view(-1), requires_grad=True)
+
+
+if __name__ == "__main__":
+    from thop import profile
+
+    in_channel = [256, 512, 1024]
+    feats = [torch.rand([1, in_channel[0], 64, 64]), torch.rand([1, in_channel[1], 32, 32]),
+             torch.rand([1, in_channel[2], 16, 16])]
+    head = YOLOX_Head(1)
+    head.init_weights()
+    head.eval()
+    total_ops, total_params = profile(head, (feats,))
+    print("total_ops {:.2f}G, total_params {:.2f}M".format(total_ops / 1e9, total_params / 1e6))
+    out = head(feats)
+    for o in out:
+        print(o.size())

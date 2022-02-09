@@ -162,6 +162,39 @@ class CSPDarknet(nn.Module):
         outputs["dark5"] = x
         return {k: v for k, v in outputs.items() if k in self.out_features}
 
+    def _freeze_stages(self):
+        if self.frozen_stages >= 0:
+            for i in range(self.frozen_stages):
+                m = getattr(self, self.cr_blocks[i])
+                m.eval()
+                for param in m.parameters():
+                    param.requires_grad = False
+
+    # def train(self, mode=True):
+    #     super(CSPDarknet, self).train(mode)
+    #     self._freeze_stages()
+    #     if mode and self.norm_eval:
+    #         for m in self.modules():
+    #             if isinstance(m, _BatchNorm):
+    #                 m.eval()
+
 
 if __name__ == '__main__':
-    print(CSPDarknet(1, 1))
+    from thop import profile
+
+    m = CSPDarknet(1, 1)
+    m.eval()
+    inputs = torch.rand(1, 3, 416, 416)
+    total_ops, total_params = profile(m, (inputs,))
+    print("total_ops {}G, total_params {}M".format(total_ops / 1e9, total_params / 1e6))
+    level_outputs = m(inputs)
+    for name, level_out in level_outputs.items():
+        print(tuple(level_out.shape))
+
+    '''
+    total_ops 16.031734784G, total_params 27.075968M
+    (1, 256, 52, 52)
+    (1, 512, 26, 26)
+    (1, 1024, 13, 13)
+    
+    '''

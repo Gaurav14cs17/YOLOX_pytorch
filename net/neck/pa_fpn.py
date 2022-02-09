@@ -4,7 +4,7 @@ from net.backbone.draknet import BaseConv, CSPLayer, DWConv
 
 
 class YOLO_PA_FPN(nn.Module):
-    def __init__(self, depth=1.0, width=1.0,in_channels=None, depthwise=False, act="silu"):
+    def __init__(self, depth=1.0, width=1.0, in_channels=None, depthwise=False, act="silu"):
         super(YOLO_PA_FPN, self).__init__()
 
         if in_channels is None:
@@ -85,5 +85,43 @@ class YOLO_PA_FPN(nn.Module):
         P4_downsample = torch.cat([P4_downsample, P5], 1)
         #   20, 20, 1024 -> 20, 20, 1024
         P5_out = self.C3_n4(P4_downsample)
-
         return (P3_out, P4_out, P5_out)
+
+
+    def init_weights(self):
+        for m in self.modules():
+            if isinstance(m, nn.BatchNorm2d):
+                m.eps = 1e-3
+                m.momentum = 0.03
+
+
+if __name__ == "__main__":
+    from thop import profile
+
+    in_channels = [96, 192, 384]
+    feats = [torch.rand([1, in_channels[0], 64, 64]), torch.rand([1, in_channels[1], 32, 32]),
+             torch.rand([1, in_channels[2], 16, 16])]
+
+    # fpn = PPYOLOPAN(in_channels, norm_type='bn', act='mish', conv_block_num=3, drop_block=True, block_size=3, spp=True)
+    # fpn = PPYOLOFPN(in_channels, coord_conv=True, drop_block=True, block_size=3, keep_prob=0.9, spp=True)
+    # fpn = YOLOv3FPN(in_channels)
+    # fpn = PPYOLOTinyFPN(in_channels)
+    fpn = YOLO_PA_FPN(depth=0.33, width=0.375)
+    fpn.init_weights()
+    # print(fpn)
+    fpn.eval()
+
+    total_ops, total_params = profile(fpn, (feats,))
+    print("total_ops {:.2f}G, total_params {:.2f}M".format(total_ops/1e9, total_params/1e6))
+
+    output = fpn(feats)
+    for o in output:
+        print(o.size())
+
+
+    '''
+    total_ops 0.97G, total_params 1.60M
+    torch.Size([1, 96, 64, 64])
+    torch.Size([1, 192, 32, 32])
+    torch.Size([1, 384, 16, 16])
+    '''

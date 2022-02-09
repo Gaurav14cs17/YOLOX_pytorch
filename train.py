@@ -1,107 +1,223 @@
-import numpy as np
-import torch
-import torch.backends.cudnn as cudnn
-import torch.optim as optim
-from torch.utils.data import DataLoader
-from net.model_body.Esnet_Pa_fpn_yolx import ES_YoloBody
-from data_loader.dataloader import YoloDataset, yolo_dataset_collate
-from net.loss.yolo_training import YOLOLOSS, weights_init
-from utils.callbacks import LossHistory
-from utils.utils import get_classes
-from utils.utils_fit import fit_one_epoch
+# from __future__ import print_function, division
+# import os
+# import shutil
+# import random
+# import time
+# from progress.bar import Bar
+# import torch
+# import torch.nn as nn
+# from config import opt
+# from torch.utils.data import DataLoader
+# from data_loader.dataloader import *
+# from net.Esnet_Pa_fpn_yolx import ES_YoloBody
+# from net.post_process import yolox_post_process
+# from utils.lr_scheduler import LRScheduler
+# from utils.util import AverageMeter, write_log, configure_module, occupy_mem
+# from utils.model_utils import save_model, load_model, clip_grads
+# from utils.ema import ModelEMA
+# from utils.data_parallel import set_device, _DataParallel
+# from utils.logger import Logger
+#
+#
+# def run_epoch(model_with_loss, optimizer, scaler, ema, phase, epoch, data_loader, num_iter, total_iter,
+#               lr_scheduler=None):
+#     if phase == 'train':
+#         model_with_loss.train()
+#     else:
+#         model_with_loss.eval()
+#         torch.cuda.empty_cache()
+#
+#     results, avg_loss_stats, last_opt_iter = {}, {}, 0
+#     data_time, batch_time = AverageMeter(), AverageMeter()
+#     bar = Bar('{}'.format(opt.exp_id), max=num_iter)
+#     end = time.time()
+#     for iter_id, (inps, targets, img_info, ind) in enumerate(data_loader):
+#         iter_id += 1
+#         inps = torch.from_numpy(inps).to(device=opt.device, non_blocking=True)
+#         targets = torch.from_numpy(targets).to(device=opt.device, non_blocking=True)
+#         data_time.update(time.time() - end)
+#
+#         if phase == 'train':
+#             iteration = (epoch - 1) * num_iter + iter_id
+#             optimizer.zero_grad()
+#             _, loss_stats = model_with_loss.loss(inps, labels=targets)
+#             loss_stats = {k: v.mean() for k, v in loss_stats.items()}
+#             scaler.scale(loss_stats["loss"]).backward()
+#             if opt.grad_clip is not None and not opt.use_amp:
+#                 scaler.unscale_(optimizer)
+#                 grad_normal = clip_grads(model_with_loss, opt.grad_clip)
+#                 loss_stats['grad_normal'] = grad_normal
+#             scaler.step(optimizer)
+#             scaler.update()
+#             ema.update(model_with_loss) if opt.ema else ''
+#
+#             lr = lr_scheduler.update_lr(iteration)
+#             for param_group in optimizer.param_groups:
+#                 param_group["lr"] = lr
+#             if (iteration - 1) % 50 == 0 and epoch <= 15:
+#                 logger.scalar_summary("lr_iter_before_15_epoch", lr, iteration)
+#         else:
+#             yolo_outputs, loss_stats = model_with_loss(inps, targets=targets)
+#             iteration, total_iter, lr = iter_id, num_iter, optimizer.param_groups[0]['lr']
+#             img_ratio = [float(min(opt.test_size[0] / img_info[0][i], opt.test_size[1] / img_info[1][i])) for i in
+#                          range(inps.shape[0])]
+#             img_shape = [[int(img_info[0][i]), int(img_info[1][i])] for i in range(inps.shape[0])]
+#             predicts = yolox_post_process(yolo_outputs, opt.stride, opt.num_classes, 0.01, opt.nms_thresh,
+#                                           opt.label_name, img_ratio, img_shape)
+#             for img_id, predict in zip(ind.cpu().numpy().tolist(), predicts):
+#                 results[img_id] = predict
+#
+#         batch_time.update(time.time() - end)
+#         end = time.time()
+#         shapes = "x".join([str(i) for i in inps.shape])
+#         Bar.suffix = '{phase}: total_epoch[{0}/{1}] total_batch[{2}/{3}] batch[{4}/{5}] |size: {6} |lr: {7} |Tot: ' \
+#                      '{total:} |ETA: {eta:} '.format(epoch, opt.num_epochs, iteration, total_iter, iter_id, num_iter,
+#                                                      shapes, "{:.8f}".format(lr), phase=phase, total=bar.elapsed_td,
+#                                                      eta=bar.eta_td)
+#         for l in loss_stats:
+#             if l not in avg_loss_stats:
+#                 avg_loss_stats[l] = AverageMeter()
+#             avg_loss_stats[l].update(loss_stats[l], inps.size(0))
+#             Bar.suffix = Bar.suffix + '|{} {:.4f} '.format(l, avg_loss_stats[l].avg)
+#         Bar.suffix = Bar.suffix + '|Data {dt.val:.3f}s |Batch {bt.val:.3f}s'.format(dt=data_time, bt=batch_time)
+#         if opt.print_iter > 0 and iter_id % opt.print_iter == 0:
+#             print('{}| {}'.format(opt.exp_id, Bar.suffix))
+#             logger.write('{}| {}\n'.format(opt.exp_id, Bar.suffix))
+#         bar.next()
+#
+#     bar.finish()
+#     ret = {k: v.avg for k, v in avg_loss_stats.items()}
+#     ret['time'] = bar.elapsed_td.total_seconds() / 60.
+#     return ret, results
+#
+#
+# def train(model, scaler, train_loader, val_loader, optimizer, lr_scheduler, start_epoch, no_aug):
+#     best = -1
+#     iter_per_train_epoch = len(train_loader)
+#     iter_per_val_epoch = len(val_loader)
+#     total_train_iteration = opt.num_epochs * iter_per_train_epoch
+#
+#     # exponential moving average
+#     ema = ModelEMA(model)
+#     ema.updates = iter_per_train_epoch * start_epoch
+#     for epoch in range(start_epoch + 1, opt.num_epochs + 1):
+#         if epoch == opt.num_epochs - opt.no_aug_epochs or no_aug:
+#             train_loader.dataset.enable_mosaic = False
+#             logger.write("--->No mosaic aug now! epoch {}\n".format(epoch))
+#             if isinstance(model, torch.nn.DataParallel) or isinstance(model, _DataParallel):
+#                 model.module.loss.use_l1 = True
+#             else:
+#                 model.loss.use_l1 = True
+#             opt.val_intervals = 1
+#             logger.write("--->Add additional L1 loss now! epoch {}\n".format(epoch))
+#
+#         logger.scalar_summary("lr_epoch", optimizer.param_groups[0]['lr'], epoch)
+#         loss_dict_train, _ = run_epoch(model, optimizer, scaler, ema, "train", epoch, train_loader,
+#                                        iter_per_train_epoch, total_train_iteration, lr_scheduler)
+#         logger.write('train epoch: {} |'.format(epoch))
+#         write_log(loss_dict_train, logger, epoch, "train")
+#
+#         if opt.val_intervals > 0 and epoch % opt.val_intervals == 0:
+#             logger.write('----------epoch {} start evaluate----------\n'.format(epoch))
+#             with torch.no_grad():
+#                 loss_dict_val, preds = run_epoch(ema.ema, optimizer, None, None, "val", epoch, val_loader,
+#                                                  iter_per_val_epoch, iter_per_val_epoch)
+#             logger.write('----------epoch {} evaluating ----------\n'.format(epoch))
+#             logger.write('val epoch: {} |'.format(epoch))
+#             ap, ap_0_5, ap_7_5, ap_small, ap_medium, ap_large, r = val_loader.dataset.run_coco_eval(preds, opt.save_dir)
+#             loss_dict_val["AP"], loss_dict_val["AP_0.5"], loss_dict_val["AP_0.75"] = ap, ap_0_5, ap_7_5
+#             loss_dict_val["AP_small"], loss_dict_val["AP_medium"] = ap_small, ap_medium
+#             loss_dict_val["AP_large"] = ap_large
+#             write_log(loss_dict_val, logger, epoch, "val")
+#             logger.write("\n{}\n".format(r))
+#             if ap >= best:
+#                 save_model(os.path.join(opt.save_dir, 'model_best.pth'), epoch, ema.ema, logger=logger)
+#                 best = ap
+#             del loss_dict_val, preds
+#
+#         save_model(os.path.join(opt.save_dir, 'model_{}.pth'.format(epoch)), epoch,
+#                    ema.ema, logger=logger) if epoch % opt.save_epoch == 0 else ""
+#         save_model(os.path.join(opt.save_dir, 'model_last.pth'), epoch, ema.ema, optimizer, scaler, logger=logger)
+#
+#     logger.write("training finished... please use 'evaluate.sh' to get the final mAP on val dataset\n")
+#     logger.close()
+#
+#
+# def main():
+#     # define model with loss
+#     model = ES_YoloBody(opt.num_classes)
+#
+#     # define optimizer
+#     pg0, pg1, pg2 = [], [], []  # optimizer parameter groups
+#     for k, v in model.named_modules():
+#         if hasattr(v, "bias") and isinstance(v.bias, nn.Parameter):
+#             pg2.append(v.bias)  # biases
+#         if isinstance(v, nn.BatchNorm2d) or "bn" in k:
+#             pg0.append(v.weight)  # no decay
+#         elif hasattr(v, "weight") and isinstance(v.weight, nn.Parameter):
+#             pg1.append(v.weight)  # apply decay
+#     lr = opt.warmup_lr if opt.warmup_epochs > 0 else opt.basic_lr_per_img * opt.batch_size
+#     optimizer = torch.optim.SGD(pg0, lr=lr, momentum=opt.momentum, nesterov=True)
+#     optimizer.add_param_group({"params": pg1, "weight_decay": opt.weight_decay})  # add pg1 with weight_decay
+#     optimizer.add_param_group({"params": pg2})
+#
+#     # Automatic mixed precision
+#     scaler = torch.cuda.amp.GradScaler(enabled=opt.use_amp, init_scale=2. ** 16)
+#
+#     # fine-tune or resume
+#     start_epoch = 0
+#     if opt.load_model != '':
+#         model, optimizer, start_epoch, scaler = load_model(model, opt.load_model, optimizer, scaler, opt.resume)
+#
+#     # define loader
+#     no_aug = start_epoch >= opt.num_epochs - opt.no_aug_epochs
+#     # train_loader, val_loader = get_dataloader(opt, no_aug=no_aug)
+#
+#     with open(opt.train_annotation_path) as f:
+#         train_lines = f.readlines()
+#     with open(opt.val_annotation_path) as f:
+#         val_lines = f.readlines()
+#
+#     num_train, num_val = len(train_lines), len(val_lines)
+#
+#     train_dataset = YoloDataset(train_lines, opt.input_size, opt.num_classes, opt.num_epochs - start_epoch ,mosaic=True,train=True)
+#     val_dataset = YoloDataset(val_lines, opt.input_size, opt.num_classes, opt.num_epochs - start_epoch, mosaic=False,train=False)
+#
+#     train_loader = DataLoader(train_dataset, shuffle=True, batch_size=opt.batch_size, num_workers=opt.data_num_workers,
+#                               pin_memory=True,
+#                               drop_last=True, collate_fn=yolo_dataset_collate)
+#     val_loader = DataLoader(val_dataset, shuffle=True, batch_size=opt.batch_size, num_workers=opt.data_num_workers,
+#                             pin_memory=True,
+#                             drop_last=True, collate_fn=yolo_dataset_collate)
+#
+#     dataset_label = opt.label_name
+#     assert opt.label_name == dataset_label, "[ERROR] 'opt.label_name' should be the same as dataset's {} != {}".format(
+#         opt.label_name, dataset_label)
+#     # learning ratio scheduler
+#     base_lr = opt.basic_lr_per_img * opt.batch_size
+#     lr_scheduler = LRScheduler(opt.scheduler, base_lr, num_train, opt.num_epochs,
+#                                warmup_epochs=opt.warmup_epochs, warmup_lr_start=opt.warmup_lr,
+#                                no_aug_epochs=opt.no_aug_epochs, min_lr_ratio=opt.min_lr_ratio)
+#
+#     # DP
+#     opt.device = torch.device('cuda' if opt.gpus[0] >= 0 else 'cpu')
+#     if opt.occupy_mem and opt.device.type != 'cpu':
+#         occupy_mem(opt.device)
+#     model, optimizer = set_device(model, optimizer, opt)
+#     train(model, scaler, train_loader, val_loader, optimizer, lr_scheduler, start_epoch, no_aug)
+#
+#
+# if __name__ == "__main__":
+#     configure_module()
+#     if opt.seed is not None:
+#         random.seed(opt.seed)
+#         np.random.seed(opt.seed)
+#         torch.manual_seed(opt.seed)
+#     torch.backends.cudnn.benchmark = opt.cuda_benchmark
+#
+#     logger = Logger(opt)
+#     shutil.copyfile("./config.py", logger.log_path + "/config.py")
+#     main()
 
-if __name__ == "__main__":
-    Cuda = True
-    classes_path = 'model_data/voc_classes.txt'
-    model_path = ''
-    input_shape = [320, 320]
-    phi = 'nano'
-    mosaic = False
-    Cosine_scheduler = False
-    Freeze_Train = False
-    UnFreeze_Train = True
 
-    # use_fp16 = True #it's not work 
-    # scaler = torch.cuda.amp.GradScaler(enabled=use_fp16)
-    # data_type = torch.float16 if use_fp16 else torch.float32
-
-    num_workers = 1
-    train_annotation_path = 'model_data/2012_train.txt'
-    val_annotation_path = 'model_data/2012_val.txt'
-
-    UnFreeze_Epoch = 100
-    Unfreeze_batch_size = 16
-    Unfreeze_lr = 1e-4
-
-
-
-
-    class_names, num_classes = get_classes(classes_path)
-    model = ES_YoloBody(num_classes)
-    weights_init(model)
-
-
-
-    if model_path != '':
-        print('Load weights {}.'.format(model_path))
-        device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-        model_dict = model.state_dict()
-        pretrained_dict = torch.load(model_path, map_location=device)
-        pretrained_dict = {k: v for k, v in pretrained_dict.items() if np.shape(model_dict[k]) == np.shape(v)}
-        model_dict.update(pretrained_dict)
-        model.load_state_dict(model_dict)
-
-    # torch.Size([32, 25, 40, 40])
-    # torch.Size([32, 25, 20, 20])
-    # torch.Size([32, 25, 10, 10])
-
-    model_train = model.train()
-    if Cuda:
-        model_train = torch.nn.DataParallel(model)
-        cudnn.benchmark = True
-        model_train = model_train.cuda()
-
-
-    strides = [8,16 , 32  ] # [320/40 , 320/20 ,320/10]
-    yolo_loss = YOLOLOSS(num_classes , strides=strides)
-    loss_history = LossHistory("logs/")
-    with open(train_annotation_path) as f:
-        train_lines = f.readlines()
-    with open(val_annotation_path) as f:
-        val_lines = f.readlines()
-    num_train = len(train_lines)
-    num_val = len(val_lines)
-
-    print("model train from skreach")
-    batch_size = Unfreeze_batch_size
-    lr = Unfreeze_lr
-    start_epoch = 0
-    end_epoch = UnFreeze_Epoch
-    epoch_step = num_train // batch_size
-    epoch_step_val = num_val // batch_size
-    if epoch_step == 0 or epoch_step_val == 0:
-        raise ValueError("error")
-
-
-
-
-
-
-
-    optimizer = optim.Adam(model_train.parameters(), lr, weight_decay=5e-4)
-    if Cosine_scheduler:
-        lr_scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=5, eta_min=1e-5)
-    else:
-        lr_scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=1, gamma=0.92)
-
-    train_dataset = YoloDataset(train_lines, input_shape, num_classes, end_epoch - start_epoch, mosaic=mosaic,train=True)
-    val_dataset = YoloDataset(val_lines, input_shape, num_classes, end_epoch - start_epoch, mosaic=False,train=False)
-
-    gen = DataLoader(train_dataset, shuffle=True, batch_size=batch_size, num_workers=num_workers, pin_memory=True,drop_last=True, collate_fn=yolo_dataset_collate)
-    gen_val = DataLoader(val_dataset, shuffle=True, batch_size=batch_size, num_workers=num_workers, pin_memory=True,drop_last=True, collate_fn=yolo_dataset_collate)
-
-    for epoch in range(start_epoch, end_epoch):
-        fit_one_epoch(model_train, model, yolo_loss, loss_history, optimizer, epoch,
-                      epoch_step, epoch_step_val, gen, gen_val, end_epoch, Cuda ) #, scaler ,data_type ,use_fp16 )
-        lr_scheduler.step()
 

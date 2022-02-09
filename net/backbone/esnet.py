@@ -23,10 +23,11 @@ def make_divisible(v, divisor=16, min_value=None):
 
 
 class ConvBNLayer(nn.Module):
-    def __init__(self,in_channels,out_channels,kernel_size,stride,padding,groups=1,act=None):
+    def __init__(self, in_channels, out_channels, kernel_size, stride, padding, groups=1, act=None):
         super(ConvBNLayer, self).__init__()
-        self._conv = nn.Conv2d(in_channels=in_channels,out_channels=out_channels,kernel_size=kernel_size,stride=stride,
-            padding=padding,groups=groups,bias=False)
+        self._conv = nn.Conv2d(in_channels=in_channels, out_channels=out_channels, kernel_size=kernel_size,
+                               stride=stride,
+                               padding=padding, groups=groups, bias=False)
         self._batch_norm = nn.BatchNorm2d(out_channels)
         self.act = nn.Identity() if act is None else acts[act]
 
@@ -41,8 +42,10 @@ class SEModule(nn.Module):
     def __init__(self, channel, reduction=4):
         super(SEModule, self).__init__()
         self.avg_pool = nn.AdaptiveAvgPool2d(1)
-        self.conv1 = nn.Conv2d(in_channels=channel,out_channels=channel // reduction,kernel_size=1,stride=1,padding=0, groups=min(channel,channel//reduction))
-        self.conv2 = nn.Conv2d(in_channels=channel // reduction,out_channels=channel,kernel_size=1,stride=1,padding=0,groups=min(channel,channel//reduction))
+        self.conv1 = nn.Conv2d(in_channels=channel, out_channels=channel // reduction, kernel_size=1, stride=1,
+                               padding=0, groups=min(channel, channel // reduction))
+        self.conv2 = nn.Conv2d(in_channels=channel // reduction, out_channels=channel, kernel_size=1, stride=1,
+                               padding=0, groups=min(channel, channel // reduction))
 
     def forward(self, inputs):
         outputs = self.avg_pool(inputs)
@@ -63,18 +66,19 @@ def channel_shuffle(x: Tensor, groups: int) -> Tensor:
 
 
 class InvertedResidual(nn.Module):
-    def __init__(self,in_channels,mid_channels,out_channels,stride,act="relu"):
+    def __init__(self, in_channels, mid_channels, out_channels, stride, act="relu"):
         super(InvertedResidual, self).__init__()
-        self._conv_pw = ConvBNLayer(in_channels=in_channels // 2,out_channels=mid_channels // 2,kernel_size=1,stride=1,padding=0,groups=4,act=act)
-        self._conv_dw = ConvBNLayer(in_channels=mid_channels // 2,out_channels=mid_channels // 2,kernel_size=3,
-            stride=stride,padding=1,groups=mid_channels // 2,act=None)
+        self._conv_pw = ConvBNLayer(in_channels=in_channels // 2, out_channels=mid_channels // 2, kernel_size=1,
+                                    stride=1, padding=0, groups=4, act=act)
+        self._conv_dw = ConvBNLayer(in_channels=mid_channels // 2, out_channels=mid_channels // 2, kernel_size=3,
+                                    stride=stride, padding=1, groups=mid_channels // 2, act=None)
         self._se = SEModule(mid_channels)
         self._conv_linear = ConvBNLayer(
-            in_channels=mid_channels,out_channels=out_channels // 2,kernel_size=1,stride=1,
-            padding=0,groups=4,act=act)
+            in_channels=mid_channels, out_channels=out_channels // 2, kernel_size=1, stride=1,
+            padding=0, groups=4, act=act)
 
     def forward(self, inputs):
-        x1, x2 = torch.chunk(inputs,chunks=2,dim=1)
+        x1, x2 = torch.chunk(inputs, chunks=2, dim=1)
         x2 = self._conv_pw(x2)
         x3 = self._conv_dw(x2)
         x3 = torch.cat([x2, x3], axis=1)
@@ -86,28 +90,30 @@ class InvertedResidual(nn.Module):
 
 
 class InvertedResidualDS(nn.Module):
-    def __init__(self,in_channels,mid_channels,out_channels,stride,act="relu"):
+    def __init__(self, in_channels, mid_channels, out_channels, stride, act="relu"):
         super(InvertedResidualDS, self).__init__()
         # branch1
-        self._conv_dw_1 = ConvBNLayer(in_channels=in_channels,out_channels=in_channels,kernel_size=3,stride=stride,padding=1,
-            groups=in_channels,act=None)
-        self._conv_linear_1 = ConvBNLayer(in_channels=in_channels,out_channels=out_channels // 2,kernel_size=1,stride=1,
-            padding=0,groups=6,act=act)
+        self._conv_dw_1 = ConvBNLayer(in_channels=in_channels, out_channels=in_channels, kernel_size=3, stride=stride,
+                                      padding=1,
+                                      groups=in_channels, act=None)
+        self._conv_linear_1 = ConvBNLayer(in_channels=in_channels, out_channels=out_channels // 2, kernel_size=1,
+                                          stride=1,
+                                          padding=0, groups=6, act=act)
         # branch2
-        self._conv_pw_2 = ConvBNLayer(in_channels=in_channels,out_channels=mid_channels // 2,kernel_size=1,
-            stride=1,padding=0,groups=2,act=act)
+        self._conv_pw_2 = ConvBNLayer(in_channels=in_channels, out_channels=mid_channels // 2, kernel_size=1,
+                                      stride=1, padding=0, groups=2, act=act)
 
-        self._conv_dw_2 = ConvBNLayer(in_channels=mid_channels // 2,out_channels=mid_channels // 2,kernel_size=3,
-            stride=stride,padding=1,groups=mid_channels // 2,act=None)
+        self._conv_dw_2 = ConvBNLayer(in_channels=mid_channels // 2, out_channels=mid_channels // 2, kernel_size=3,
+                                      stride=stride, padding=1, groups=mid_channels // 2, act=None)
 
         self._se = SEModule(mid_channels // 2)
-        self._conv_linear_2 = ConvBNLayer(in_channels=mid_channels // 2,out_channels=out_channels // 2,kernel_size=1,
-            stride=1,padding=0,groups=4,act=act)
-        self._conv_dw_mv1 = ConvBNLayer(in_channels=out_channels,out_channels=out_channels,kernel_size=3,
-            stride=1,padding=1,groups=out_channels,act="hard_swish")
+        self._conv_linear_2 = ConvBNLayer(in_channels=mid_channels // 2, out_channels=out_channels // 2, kernel_size=1,
+                                          stride=1, padding=0, groups=4, act=act)
+        self._conv_dw_mv1 = ConvBNLayer(in_channels=out_channels, out_channels=out_channels, kernel_size=3,
+                                        stride=1, padding=1, groups=out_channels, act="hard_swish")
 
-        self._conv_pw_mv1 = ConvBNLayer(in_channels=out_channels,out_channels=out_channels,kernel_size=1,
-            stride=1,padding=0,groups=1,act="hard_swish")
+        self._conv_pw_mv1 = ConvBNLayer(in_channels=out_channels, out_channels=out_channels, kernel_size=1,
+                                        stride=1, padding=0, groups=1, act="hard_swish")
 
     def forward(self, inputs):
         x1 = self._conv_dw_1(inputs)
@@ -203,3 +209,25 @@ class ESNet(nn.Module):
             if i + 2 in self.feature_maps:
                 outs.append(y)
         return outs
+
+
+if __name__ == "__main__":
+    from thop import profile
+
+    m = ESNet()
+    # m.init_weights()
+    m.eval()
+    inputs = torch.rand(1, 3, 416, 416)
+    total_ops, total_params = profile(m, (inputs,))
+    print("total_ops {}G, total_params {}M".format(total_ops / 1e9, total_params / 1e6))
+    level_outputs = m(inputs)
+    for level_out in level_outputs:
+        print(tuple(level_out.shape))
+
+
+    '''
+    total_ops 0.152034983G, total_params 0.299095M
+    (1, 96, 52, 52)
+    (1, 192, 26, 26)
+    (1, 384, 13, 13)
+    '''
