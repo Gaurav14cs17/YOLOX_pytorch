@@ -140,16 +140,58 @@ class COCODatset(Dataset):
 
 
     def _load_coco_annotations(self):
-        return [self.load_anno_from_ids(_ids) for _ids in self.image_ids]
+        annotations_list = []
+        for _ids in self.ids :
+            annotations_list.append(self.load_anno_from_ids(_ids))
+        return annotations_list
 
     def load_anno_from_ids(self, id_):
-        pass
+        im_ann = self.coco_dataset.loadImgs(id_)[0]
+        width = im_ann['width']
+        height = im_ann['height']
+        anno_ids = self.coco_dataset.getAnnIds(imgIds=[int(id_)] , iscrowd=False)
+        annotations = self.coco_dataset.loadAnns(anno_ids)
+        objs = []
+        for obj in annotations :
+            x1 = np.max((0,obj['bbox'][0]))
+            y1 = np.max((0,obj['bbox'][1]))
+            x2 = np.min((width - 1, x1 + np.max((0, obj["bbox"][2] - 1))))
+            y2 = np.min((height - 1, y1 + np.max((0, obj["bbox"][3] - 1))))
+            if obj["area"] > 0 and x2 >= x1 and y2 >= y1:
+                obj["clean_bbox"] = [x1, y1, x2, y2]
+                objs.append(obj)
+
+
+        num_objs = len(objs)
+        res = np.zeros((num_objs , 6 if self.tracking else 5))
+        for ix , obj in enumerate(objs):
+            cls = self.classes_inds.index(obj['category_id'])
+            res[ix ,0:4] = obj['clean_bbox']
+            res[ix ,4 ] = cls
+            if self.tracking :
+                assert "tracking_id" in obj.keys(), 'cannot find "tracking_id" in your dataset'
+                res[ix, 5] = obj['tracking_id']
+
+        img_info = (height , width )
+        file_name = im_ann['file_name']
+        del im_ann , annotations
+        return res , img_info , file_name , id_
+
 
     def pull_item(self, index):
-        pass
+        res , img_info , file_name , id_ = self.annotations[index]
+        file_name = file_name.split('.')[0] + '.jpg'
+        img_file = self.data_dir + "/" + file_name
+        img = cv2.imread(img_file)
+        assert img is not None ,"error img {}".format(img_file)
+        return img , res.copy() , img_info , id_
+
 
     def close_random_size(self):
-        pass
+        self.samples_shapes = []
+        for _ in range(self.number_of_samples):
+            self.samples_shapes.append(self.img_size)
+        print("close multi-size training\n")
 
     def __getitem__(self, idx):
         pass
