@@ -21,8 +21,9 @@ def update_nano_tiny(cfg, inp_params):
 opt = EasyDict()
 
 opt.exp_id = "coco_CSPDarknet-s_640x640"  # experiment name, you can change it to any other name
-opt.images_dataset_path = "D:\labs\object_detection_model\VOCdevkit"  # COCO detection
+opt.images_dataset_path = "D:\labs\object_detection_model/face_dataset"  # COCO detection
 # opt.dataset_path = r"D:\work\public_dataset\coco2017"  # Windows system
+
 opt.backbone = "CSPDarknet-nano"  # CSPDarknet-nano, CSPDarknet-tiny, CSPDarknet-s, CSPDarknet-m, l, x
 opt.input_size = (640, 640)
 opt.random_size = (14, 26)  # None; multi-size train: from 448(14*32) to 832(26*32), set None to disable it
@@ -33,20 +34,7 @@ opt.master_batch_size = -1  # batch size in first gpu. -1 means: master_batch_si
 opt.num_epochs = 300
 
 # coco 80 classes
-opt.label_name = [
-    'person', 'bicycle', 'car', 'motorcycle', 'airplane',
-    'bus', 'train', 'truck', 'boat', 'traffic light', 'fire hydrant',
-    'stop sign', 'parking meter', 'bench', 'bird', 'cat', 'dog', 'horse',
-    'sheep', 'cow', 'elephant', 'bear', 'zebra', 'giraffe', 'backpack',
-    'umbrella', 'handbag', 'tie', 'suitcase', 'frisbee', 'skis',
-    'snowboard', 'sports ball', 'kite', 'baseball bat', 'baseball glove',
-    'skateboard', 'surfboard', 'tennis racket', 'bottle', 'wine glass',
-    'cup', 'fork', 'knife', 'spoon', 'bowl', 'banana', 'apple', 'sandwich',
-    'orange', 'broccoli', 'carrot', 'hot dog', 'pizza', 'donut', 'cake',
-    'chair', 'couch', 'potted plant', 'bed', 'dining table', 'toilet', 'tv',
-    'laptop', 'mouse', 'remote', 'keyboard', 'cell phone', 'microwave',
-    'oven', 'toaster', 'sink', 'refrigerator', 'book', 'clock', 'vase',
-    'scissors', 'teddy bear', 'hair drier', 'toothbrush']
+opt.label_name = ['face']
 
 # TODO: support MOT(multi-object tracking) like FairMot/JDE when reid_dim > 0
 opt.reid_dim = 0  # 128  used in MOT, will add embedding branch if reid_dim>0
@@ -100,8 +88,8 @@ if opt.backbone.lower().split("-")[1] in ["tiny", "nano"]:
     opt = update_nano_tiny(opt, input_params)
 
 # do not modify the following params
-opt.train_ann =  "/annotations/instances_train2017.json"
-opt.val_ann = "/annotations/instances_val2017.json"
+opt.train_ann =  "D:\labs\object_detection_model\YOLOX_pytorch\model_data/annotations/instances_train2017.json"
+opt.val_ann = "D:\labs\object_detection_model\YOLOX_pytorch\model_data/annotations/instances_val2017.json"
 
 
 if isinstance(opt.label_name, str):

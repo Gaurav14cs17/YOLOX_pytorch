@@ -41,13 +41,13 @@ def adjust_box_anns(bbox, scale_ratio, padw, padh, w_max, h_max):
 
 
 class COCODatset(Dataset):
-    def __init__(self, cfg, img_size=(320, 320), json_file="data.json", preproc=None, no_aug=True, tracking=False,
-                 logger=None):
+    def __init__(self, cfg, img_size=(320, 320), json_file="data.json",  preproc=None, no_aug=True, tracking=False,logger=None):
         super(COCODatset, self).__init__()
 
         self.cfg = cfg
         self.img_size = img_size
         self.json_file = json_file
+
         self.preproc = preproc
         self.augment = not no_aug
         self.tracking = tracking
@@ -247,8 +247,8 @@ class COCODatset(Dataset):
 
     def pull_item(self, index):
         res, img_info, file_name, id_ = self.annotations[index]
-        file_name = file_name.split('.')[0] + '.jpg'
-        img_file = self.images_dataset_path + "/" + file_name
+        print(file_name)
+        img_file = os.path.join(self.images_dataset_path , file_name)
         img = cv2.imread(img_file)
         assert img is not None, "error img {}".format(img_file)
         return img, res.copy(), img_info, id_
@@ -390,9 +390,10 @@ def run_epoch(train_loader, e, opt):
 
 def main():
     from cfg.config import opt
-    opt.images_dataset_path = "D:\labs\object_detection_model\VOCdevkit\VOC2012\JPEGImages"
-    opt.train_ann = "D:\labs\object_detection_model\YOLOX_pytorch\data/annotations/instances_train2017.json"
-    opt.val_ann = "D:\labs\object_detection_model\YOLOX_pytorch\data/annotations/instances_val2017.json"
+    opt.images_dataset_path = "D:\labs\object_detection_model/face_dataset"
+    opt.train_ann = "D:\labs\object_detection_model\YOLOX_pytorch\model_data/annotations/instances_train2017.json"
+    opt.val_ann = "D:\labs\object_detection_model\YOLOX_pytorch\model_data/annotations/instances_val2017.json"
+
 
     opt.input_size = (320, 320)
     opt.test_size = (320, 320)
