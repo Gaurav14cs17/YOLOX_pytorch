@@ -34,7 +34,6 @@ def get_mosaic_coordinate(mosaic_image, mosaic_index, xc, yc, w, h, input_h, inp
     return (x1, y1, x2, y2), small_coord
 
 
-
 def adjust_box_anns(bbox, scale_ratio, padw, padh, w_max, h_max):
     bbox[:, 0::2] = np.clip(bbox[:, 0::2] * scale_ratio + padw, 0, w_max)
     bbox[:, 1::2] = np.clip(bbox[:, 1::2] * scale_ratio + padh, 0, h_max)
@@ -42,31 +41,32 @@ def adjust_box_anns(bbox, scale_ratio, padw, padh, w_max, h_max):
 
 
 class COCODatset(Dataset):
-    def __init__(self, cfg, img_size=(320, 320),json_file="data.json",preproc=None,no_aug=True, tracking=False,logger=None):
+    def __init__(self, cfg, img_size=(320, 320), json_file="data.json", preproc=None, no_aug=True, tracking=False,
+                 logger=None):
         super(COCODatset, self).__init__()
 
-        self.cgf = cfg
+        self.cfg = cfg
         self.img_size = img_size
         self.json_file = json_file
         self.preproc = preproc
         self.augment = not no_aug
         self.tracking = tracking
         self.logger = logger
-        self.data_dir = self.cgf.data_dir
-        self.batch_size = self.cgf.batch_size
+        self.images_dataset_path = self.cfg.images_dataset_path
+        self.batch_size = self.cfg.batch_size
 
         ##**************************************##
         ## Data Augment Params                  ##
         ##**************************************##
         self.random_size = self.cfg.random_size
-        self.degree = self.cfg.degree
+        self.degrees = self.cfg.degrees
         self.translate = self.cfg.translate
         self.scale = self.cfg.scale
         self.shear = self.cfg.shear
-        self.prespective = self.cfg.prespective
+        self.perspective = self.cfg.perspective
         self.mixup_scale = (0.5, 1.5)
         self.enable_mosaic = self.cfg.enable_mixup
-        self.mosaic_prob = self.cgf.mosaic_prob
+        self.mosaic_prob = self.cfg.mosaic_prob
         self.mixup_prob = self.cfg.mixup_prob
 
         ##***************************************************************##
@@ -82,12 +82,12 @@ class COCODatset(Dataset):
         self.classes_inds = sorted(self.coco_dataset.getCatIds())
 
         cats = self.coco_dataset.loadCats(self.coco_dataset.getCatIds())
-        self.classes_names = [c['name'] for c in cats]
+        self.classes = [c['name'] for c in cats]
         self.annotations = self._load_coco_annotations()
-        self.samples_shapes = [self.img_size for _ in range(self.num_samples)]
+        self.samples_shapes = [self.img_size for _ in range(self.number_of_samples)]
 
         print("classes index : ", self.classes_inds)
-        print("classes name in Dataset :", self.classes_names)
+        print("classes name in Dataset :", self.classes)
 
     def __len__(self):
         return self.number_of_samples
@@ -95,7 +95,7 @@ class COCODatset(Dataset):
     def __getitem__(self, idx):
         if self.enable_mosaic and self.augment and random.random() < self.mosaic_prob:
             mosaic_labels = []
-            input_h , input_w = self.samples_shapes[idx]
+            input_h, input_w = self.samples_shapes[idx]
             # yc, xc = s, s  # mosaic center x, y
             yc = int(random.uniform(0.5 * input_h, 1.5 * input_h))
             xc = int(random.uniform(0.5 * input_w, 1.5 * input_w))
@@ -111,7 +111,8 @@ class COCODatset(Dataset):
                 if i_mosaic == 0:
                     mosaic_img = np.full((input_h * 2, input_w * 2, c), 114, dtype=np.uint8)
                 # suffix l means large image, while s means small image in mosaic aug.
-                (l_x1, l_y1, l_x2, l_y2), (s_x1, s_y1, s_x2, s_y2) = get_mosaic_coordinate(mosaic_img, i_mosaic, xc, yc, w, h, input_h, input_w)
+                (l_x1, l_y1, l_x2, l_y2), (s_x1, s_y1, s_x2, s_y2) = get_mosaic_coordinate(mosaic_img, i_mosaic, xc, yc,
+                                                                                           w, h, input_h, input_w)
                 mosaic_img[l_y1:l_y2, l_x1:l_x2] = img[s_y1:s_y2, s_x1:s_x2]
                 padw, padh = l_x1 - s_x1, l_y1 - s_y1
                 labels = _labels.copy()
@@ -128,8 +129,10 @@ class COCODatset(Dataset):
                 np.clip(mosaic_labels[:, 1], 0, 2 * input_h, out=mosaic_labels[:, 1])
                 np.clip(mosaic_labels[:, 2], 0, 2 * input_w, out=mosaic_labels[:, 2])
                 np.clip(mosaic_labels[:, 3], 0, 2 * input_h, out=mosaic_labels[:, 3])
-            mosaic_img, mosaic_labels = random_perspective(mosaic_img,mosaic_labels,degrees=self.degrees,translate=self.translate,scale=self.scale,
-                shear=self.shear,perspective=self.perspective,border=[-input_h // 2, -input_w // 2],)  # border to remove
+            mosaic_img, mosaic_labels = random_perspective(mosaic_img, mosaic_labels, degrees=self.degrees,
+                                                           translate=self.translate, scale=self.scale,
+                                                           shear=self.shear, perspective=self.perspective,
+                                                           border=[-input_h // 2, -input_w // 2], )  # border to remove
 
             if self.enable_mixup and not len(mosaic_labels) == 0 and random.random() < self.mixup_prob:
                 mosaic_img, mosaic_labels = self.mixup(mosaic_img, mosaic_labels, self.samples_shapes[idx])
@@ -138,11 +141,9 @@ class COCODatset(Dataset):
             return mix_img, padded_labels, img_info, -1
 
         else:
-            img , label , img_info , img_id = self.pull_item(idx)
-            img , label = self.preproc(img , label , self.samples_shapes[idx])
-            return img , label , img_info , img_id
-
-
+            img, label, img_info, img_id = self.pull_item(idx)
+            img, label = self.preproc(img, label, self.samples_shapes[idx])
+            return img, label, img_info, img_id
 
     def multi_shape(self):
         size_factor = self.img_size[1] * (1. / self.img_size[0])
@@ -193,7 +194,7 @@ class COCODatset(Dataset):
         json.dump(convert_into_coco_format, file_locations)
 
         coco_det = self.coco_dataset.loadRes('{}/results.json'.format(save_dir))
-        coco_eval = COCOeval(self.coco_dataset, coco_det , 'bbox')
+        coco_eval = COCOeval(self.coco_dataset, coco_det, 'bbox')
         coco_eval.evaluate()
         coco_eval.accumulate()
 
@@ -209,7 +210,7 @@ class COCODatset(Dataset):
 
     def _load_coco_annotations(self):
         annotations_list = []
-        for _ids in self.ids:
+        for _ids in self.image_ids:
             annotations_list.append(self.load_anno_from_ids(_ids))
         return annotations_list
 
@@ -247,7 +248,7 @@ class COCODatset(Dataset):
     def pull_item(self, index):
         res, img_info, file_name, id_ = self.annotations[index]
         file_name = file_name.split('.')[0] + '.jpg'
-        img_file = self.data_dir + "/" + file_name
+        img_file = self.images_dataset_path + "/" + file_name
         img = cv2.imread(img_file)
         assert img is not None, "error img {}".format(img_file)
         return img, res.copy(), img_info, id_
@@ -307,26 +308,110 @@ class COCODatset(Dataset):
         return origin_img.astype(np.uint8), origin_labels
 
 
-def get_dataloader(cfg , no_aug = False , logger = None , val_loader = True ):
+def get_dataloader(cfg, no_aug=False, logger=None, val_loader=True):
     do_tracking = cfg.reid_dim > 0
-    preproc_obj = TrainTransform(rgb_means= cfg.rgb_means ,std=cfg.std ,max_labels=120 ,tracking=do_tracking ,augment=True)
+    preproc_obj = TrainTransform(rgb_means=cfg.rgb_means, std=cfg.std, max_labels=120, tracking=do_tracking,
+                                 augment=True)
 
-    train_dataset = COCODatset(cfg , img_size=cfg.input_size , json_file= cfg.train_ann ,
-                               preproc=preproc_obj ,no_aug=no_aug ,tracking=do_tracking,logger = logger )
+    train_dataset = COCODatset(cfg, img_size=cfg.input_size, json_file=cfg.train_ann,
+                               preproc=preproc_obj, no_aug=no_aug, tracking=do_tracking, logger=logger)
 
-    train_loader = DataLoader(train_dataset , batch_size=cfg.batch_size , shuffle=False ,
+    train_loader = DataLoader(train_dataset, batch_size=cfg.batch_size, shuffle=False,
                               # num_workers=cfg.data_num_workers ,
-                              pin_memory=True ,drop_last=True)
+                              pin_memory=True, drop_last=True)
 
-    if not val_loader :
-        return train_loader , None
+    if not val_loader:
+        return train_loader, None
 
-    val_dataset = COCODatset(cfg , img_size=cfg.test_size , json_file=cfg.val_ann ,preproc=preproc_obj , no_aug=True , tracking=do_tracking , logger=logger)
-    val_loader = DataLoader(val_dataset , batch_size=cfg.batch_size, shuffle=False ,
+    val_dataset = COCODatset(cfg, img_size=cfg.test_size, json_file=cfg.val_ann, preproc=preproc_obj, no_aug=True,
+                             tracking=do_tracking, logger=logger)
+    val_loader = DataLoader(val_dataset, batch_size=cfg.batch_size, shuffle=False,
                             # num_workers=opt.data_num_workers,
-                            pin_memory=True, drop_last=False )
+                            pin_memory=True, drop_last=False)
 
-    return train_loader , val_loader
+    return train_loader, val_loader
 
 
+from utils.util import label_color
 
+
+def vis_inputs(inputs, targets, cfg):
+    inputs = inputs.cpu().numpy()
+    targets = targets.cpu().numpy()
+    for b_idx, inp in enumerate(inputs):
+        target = targets[b_idx]
+        img = (inp.transpose((1, 2, 0)) * cfg.std) + cfg.rgb_means
+        img = img * 255
+        img = img.astype(np.int8)
+        img = img[:, :, ::-1]
+        img = np.ascontiguousarray(img)
+        number_of_gt = 0
+        for t in target:
+            if t.sum() > 0:
+                if len(t) == 5:
+                    cls, c_x, c_y, w, h = [int(i) for i in t]
+                    tracking_id = None
+                elif len(t) == 6:
+                    cls, c_x, c_y, w, h, tracking_id = [int(i) for i in t]
+                else:
+                    ValueError("target shape != 5 or 6 ")
+
+                bbox = [c_x - w // 2, c_y - h // 2, c_x + w // 2, c_y + h // 2]
+                label = cfg.label_name[cls]
+                color = label_color[cls]
+                cv2.rectangle(img, (bbox[0], bbox[1]), (bbox[2], bbox[3]), color, 2)
+                txt = '{}-{}'.format(label, tracking_id) if tracking_id is not None else '{}'.format(label)
+                font = cv2.FONT_HERSHEY_SIMPLEX
+                txt_size = cv2.getTextSize(txt, font, 0.5, 2)[0]
+                cv2.rectangle(img, (bbox[0], bbox[1] - txt_size[1] - 2), (bbox[0] + txt_size[0], bbox[1] - 2), color,
+                              -1)
+                cv2.putText(img, txt, (bbox[0], bbox[1] - 2), font, 0.5, (255, 255, 255), thickness=1,
+                            lineType=cv2.LINE_AA)
+                number_of_gt += 1
+
+        print("img {}/{} gt number: {}".format(b_idx, len(inputs), number_of_gt))
+        cv2.namedWindow("input", 0)
+        cv2.imshow("input", img)
+        key = cv2.waitKey(0)
+        if key == 27:
+            exit()
+
+
+def run_epoch(train_loader, e, opt):
+    for batch_i, batch in enumerate(train_loader):
+        inps, targets, img_info, ind = batch
+        print("------------ epoch {} batch {}/{} ---------------".format(e, batch_i, len(train_loader)))
+        print("batch img shape {}, target shape {}".format(inps.shape, targets.shape))
+        if opt.show:
+            vis_inputs(inps, targets, opt)
+        if batch_i >= 21:
+            break
+
+
+def main():
+    from cfg.config import opt
+    opt.images_dataset_path = "D:\labs\object_detection_model\VOCdevkit\VOC2012\JPEGImages"
+    opt.train_ann = "D:\labs\object_detection_model\YOLOX_pytorch\data/annotations/instances_train2017.json"
+    opt.val_ann = "D:\labs\object_detection_model\YOLOX_pytorch\data/annotations/instances_val2017.json"
+
+    opt.input_size = (320, 320)
+    opt.test_size = (320, 320)
+    opt.batch_size = 2
+    opt.data_num_workers = 2  # 0
+    opt.reid_dim = 0  # 128
+    opt.show = True  # False
+
+    train_loader, val_loader = get_dataloader(opt, no_aug=True)
+
+    # train_loader = val_loader
+    dataset_label = train_loader.dataset.classes
+    assert opt.label_name == dataset_label, "your class_name != dataset's {} {}".format(opt.label_name, dataset_label)
+    for e in range(100):
+        train_loader.dataset.shuffle()
+        if e == 2:
+            train_loader.dataset.enable_mosaic = False
+        run_epoch(train_loader, e, opt)
+
+
+if __name__ == "__main__":
+    main()
