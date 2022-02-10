@@ -162,6 +162,12 @@ class CSPDarknet(nn.Module):
         outputs["dark5"] = x
         return {k: v for k, v in outputs.items() if k in self.out_features}
 
+    def init_weights(self):
+        for m in self.modules():
+            if isinstance(m, nn.BatchNorm2d):
+                m.eps = 1e-3
+                m.momentum = 0.03
+
     def _freeze_stages(self):
         if self.frozen_stages >= 0:
             for i in range(self.frozen_stages):

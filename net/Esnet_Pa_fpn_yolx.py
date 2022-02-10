@@ -14,14 +14,17 @@ from net.loss.yolox_loss import YOLOXLoss
 
 
 class ES_YoloBody(nn.Module):
-    def __init__(self, num_classes , opt ):
+    def __init__(self, num_classes , opt  , phi = "nano"):
         super().__init__()
-        depth, width = 0.24, 1.0
-        depthwise = True
+        depth_dict = {'nano': 0.33, 'tiny': 0.33, 's': 0.33, 'm': 0.67, 'l': 1.00, 'x': 1.33, }
+        width_dict = {'nano': 0.25, 'tiny': 0.375, 's': 0.50, 'm': 0.75, 'l': 1.00, 'x': 1.25, }
+        depth, width = depth_dict[phi], width_dict[phi]
+        depthwise = True if phi == 'nano' else False
         self.opt = opt
         self.backbone = ESNet()
         self.in_channels = [96, 192, 384]
-        self.neck = YOLO_PA_FPN(depth, width=1, in_channels=self.in_channels, depthwise=depthwise)
+        self.neck =  YOLO_PA_FPN(depth, width, in_channels = self.in_channel ,depthwise=depthwise)
+        #self.neck =  YOLO_PA_FPN(depth, width=1, in_channels=self.in_channels, depthwise=depthwise)
         self.head = YOLOX_Head(num_classes, width=1, in_channels=self.in_channels, depthwise=depthwise)
         self.strides = [8, 16, 32]  # [320/40 , 320/20 ,320/10]
         self.loss = YOLOXLoss(opt.label_name, reid_dim=opt.reid_dim, id_nums=opt.tracking_id_nums, strides=opt.stride,in_channels=self.in_channels)
@@ -34,14 +37,14 @@ class ES_YoloBody(nn.Module):
     def forward(self, x , targets=None , show_time=False ):
         with torch.cuda.amp.autocast(enabled=self.opt.use_amp):
             if show_time:
-                s1 = sync_time(inputs)
+                s1 = sync_time(x)
             backbone_output = self.backbone(x)
             fpn_outs = self.neck(backbone_output)
-            yolo_outputs = self.head.forward(fpn_outs)
+            yolo_outputs = self.head(fpn_outs)
 
             if show_time:
-                s2 = sync_time(inputs)
-                print("[inference] batch={} time: {}s".format("x".join([str(i) for i in inputs.shape]), s2 - s1))
+                s2 = sync_time(x)
+                print("[inference] batch={} time: {}s".format("x".join([str(i) for i in x.shape]), s2 - s1))
 
             if targets is not None:
                 loss = self.loss(yolo_outputs, targets)

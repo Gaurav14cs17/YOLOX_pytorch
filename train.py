@@ -18,11 +18,10 @@ from utils.data_parallel import set_device, _DataParallel
 from utils.logger import Logger
 
 from net.Esnet_Pa_fpn_yolx import ES_YoloBody
+from  net.Darknet_pafpn_yolox import YoloBody_Nano
 from net.post_process import yolox_post_process
 
-#
-# from models.yolox import get_model
-# from models.post_process import yolox_post_process
+
 
 
 def run_epoch(model_with_loss, optimizer, scaler, ema, phase, epoch, data_loader, num_iter, total_iter,lr_scheduler=None):
@@ -151,7 +150,8 @@ def train(model, scaler, train_loader, val_loader, optimizer, lr_scheduler, star
 
 def main(use_sgd = True ):
     # define model with loss
-    model = ES_YoloBody(opt.num_classes , opt )
+    #model = ES_YoloBody(opt.num_classes , opt )
+    model = YoloBody_Nano(opt.num_classes , opt )
 
     # define optimizer
     pg_BatchNorm, pg_weight, pg_bias = [], [], []  # optimizer parameter groups

@@ -12,7 +12,7 @@ opt.input_size = (320, 320)
 opt.random_size = (14, 26)  # None; multi-size train: from 448(14*32) to 832(26*32), set None to disable it
 opt.test_size = (320, 320)  # evaluate size
 opt.gpus = "0"  # "-1" "0" "3,4,5" "0,1,2,3,4,5,6,7" # -1 for cpu
-opt.batch_size = 2
+opt.batch_size = 4
 opt.master_batch_size = -1  # batch size in first gpu. -1 means: master_batch_size=batch_size//len(gpus)
 opt.num_epochs = 300
 opt.label_name = ['face']
@@ -30,7 +30,7 @@ opt.no_aug_epochs = 15  # close mixup and mosaic augments in the last 15 epochs
 opt.min_lr_ratio = 0.05
 opt.weight_decay = 5e-4
 opt.warmup_epochs = 5
-opt.depth_wise = False  # depth_wise conv is used in 'CSPDarknet-nano'
+opt.depth_wise = True  # depth_wise conv is used in 'CSPDarknet-nano'
 opt.stride =  [8, 16, 32]  # [320/40 , 320/20 ,320/10]
 
 # train augments
@@ -86,6 +86,7 @@ for i in range(len(opt.gpus) - 1):
     if i < rest_batch_size % (len(opt.gpus) - 1):
         slave_chunk_size += 1
     opt.chunk_sizes.append(slave_chunk_size)
+
 opt.root_dir = os.path.dirname(__file__)
 opt.save_dir = os.path.join(opt.root_dir, 'exp', opt.exp_id)
 if opt.resume and opt.load_model == '':
