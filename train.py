@@ -8,10 +8,8 @@ import numpy as np
 from progress.bar import Bar
 import torch
 import torch.nn as nn
-
 from cfg.config import opt
 from data_loader.dataloader import get_dataloader
-
 from utils.lr_scheduler import LRScheduler
 from utils.util import AverageMeter, write_log, configure_module, occupy_mem
 from utils.model_utils import save_model, load_model, clip_grads
@@ -27,8 +25,7 @@ from net.post_process import yolox_post_process
 # from models.post_process import yolox_post_process
 
 
-def run_epoch(model_with_loss, optimizer, scaler, ema, phase, epoch, data_loader, num_iter, total_iter,
-              lr_scheduler=None):
+def run_epoch(model_with_loss, optimizer, scaler, ema, phase, epoch, data_loader, num_iter, total_iter,lr_scheduler=None):
     if phase == 'train':
         model_with_loss.train()
     else:
@@ -152,30 +149,32 @@ def train(model, scaler, train_loader, val_loader, optimizer, lr_scheduler, star
     logger.close()
 
 
-def main():
+def main(use_sgd = True ):
     # define model with loss
-    #model = get_model(opt)
-    model = ES_YoloBody(opt.num_classes)
+    model = ES_YoloBody(opt.num_classes , opt )
 
     # define optimizer
-    pg0, pg1, pg2 = [], [], []  # optimizer parameter groups
+    pg_BatchNorm, pg_weight, pg_bias = [], [], []  # optimizer parameter groups
     for k, v in model.named_modules():
         if hasattr(v, "bias") and isinstance(v.bias, nn.Parameter):
-            pg2.append(v.bias)  # biases
+            pg_bias.append(v.bias)  # biases
         if isinstance(v, nn.BatchNorm2d) or "bn" in k:
-            pg0.append(v.weight)  # no decay
+            pg_BatchNorm.append(v.weight)  # no decay
         elif hasattr(v, "weight") and isinstance(v.weight, nn.Parameter):
-            pg1.append(v.weight)  # apply decay
+            pg_weight.append(v.weight)  # apply decay
 
     lr = opt.warmup_lr if opt.warmup_epochs > 0 else opt.basic_lr_per_img * opt.batch_size
-    optimizer = torch.optim.SGD(pg0, lr=lr, momentum=opt.momentum, nesterov=True)
-    #optimizer = torch.optim.Adam(model_train.parameters(), lr, weight_decay=5e-4)
-    optimizer.add_param_group({"params": pg1, "weight_decay": opt.weight_decay})  # add pg1 with weight_decay
-    optimizer.add_param_group({"params": pg2})
+
+    if use_sgd :
+        optimizer = torch.optim.SGD(pg_BatchNorm, lr=lr, momentum=opt.momentum, nesterov=True)
+        optimizer.add_param_group({"params": pg_weight, "weight_decay": opt.weight_decay})
+        optimizer.add_param_group({"params": pg_bias})
+    else:
+        pass
+        #optimizer = torch.optim.Adam(model_train.parameters(), lr, weight_decay=5e-4)
 
     # Automatic mixed precision
     scaler = torch.cuda.amp.GradScaler(enabled=opt.use_amp, init_scale=2. ** 16)
-
     # fine-tune or resume
     start_epoch = 0
     if opt.load_model != '':
@@ -210,5 +209,6 @@ if __name__ == "__main__":
     torch.backends.cudnn.benchmark = opt.cuda_benchmark
 
     logger = Logger(opt)
-    shutil.copyfile("./config.py", logger.log_path + "/config.py")
+    print(logger.log_path)
+    shutil.copyfile("./cfg/config.py", logger.log_path + "/config.py")
     main()

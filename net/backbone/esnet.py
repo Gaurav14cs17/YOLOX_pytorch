@@ -210,6 +210,12 @@ class ESNet(nn.Module):
                 outs.append(y)
         return outs
 
+    def init_weights(self):
+        for m in self.modules():
+            if isinstance(m, nn.BatchNorm2d):
+                m.eps = 1e-3
+                m.momentum = 0.03
+
 
 if __name__ == "__main__":
     from thop import profile

@@ -5,10 +5,7 @@ import time
 from cfg.config import opt
 from utils.util import mkdir, label_color, get_img_path
 
-
-
 from models.yolox import Detector
-
 
 
 def vis_result(img, results):
@@ -33,29 +30,36 @@ def vis_result(img, results):
 
 def detect_video():
     detector = Detector(opt)
-    video_dir = opt.video_dir
+    video_dir = "out.avi"
     save_folder = "output_video"
 
-    assert os.path.isfile(video_dir), "cannot find {}".format(video_dir)
-    cap = cv2.VideoCapture(video_dir)
-    # cap = cv2.VideoCapture(0)
+    #assert os.path.isfile(video_dir), "cannot find {}".format(video_dir)
+    #cap = cv2.VideoCapture(video_dir)
+    cap = cv2.VideoCapture(0)
     width = cap.get(cv2.CAP_PROP_FRAME_WIDTH)  # float
     height = cap.get(cv2.CAP_PROP_FRAME_HEIGHT)  # float
     fps = cap.get(cv2.CAP_PROP_FPS)
     frame_num = int(cap.get(7))
     mkdir(save_folder)
     save_path = os.path.join(save_folder, os.path.basename(video_dir))
-    vid_writer = cv2.VideoWriter(save_path, cv2.VideoWriter_fourcc(*"mp4v"), fps, (int(width), int(height)))
+    #cv2.VideoWriter_fourcc(*'XVID')
+    vid_writer = cv2.VideoWriter(save_path, cv2.VideoWriter_fourcc(*'XVID'), fps, (int(width), int(height)))
     idx = 1
     while True:
         ret_val, frame = cap.read()
+        t1 = time.time()
         if ret_val:
             print("detect frame {}/{}".format(idx, frame_num))
             results = detector.run(frame, vis_thresh=opt.vis_thresh, show_time=True)
+            fps = (fps + (1. / (time.time() - t1))) / 2
+            print("fps= %.2f" % (fps))
+            frame = cv2.putText(frame, "fps= %.2f" % (fps), (0, 40), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
             print(results)
             frame = vis_result(frame, results)
             vid_writer.write(frame)
+            cv2.imshow("Images" , frame)
             idx += 1
+            cv2.waitKey(1)
         else:
             break
     vid_writer.release()
@@ -92,7 +96,7 @@ def detect():
 if __name__ == "__main__":
     opt.load_model = opt.load_model if opt.load_model != "" else os.path.join(opt.save_dir, "model_best.pth")
 
-    if 'video_dir' not in opt.keys():
-        detect()
-    else:
-        detect_video()
+    # if 'video_dir' not in opt.keys():
+    #     detect()
+    # else:
+    detect_video()

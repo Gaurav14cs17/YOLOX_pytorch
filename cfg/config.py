@@ -12,7 +12,7 @@ opt.input_size = (320, 320)
 opt.random_size = (14, 26)  # None; multi-size train: from 448(14*32) to 832(26*32), set None to disable it
 opt.test_size = (320, 320)  # evaluate size
 opt.gpus = "0"  # "-1" "0" "3,4,5" "0,1,2,3,4,5,6,7" # -1 for cpu
-opt.batch_size = 8
+opt.batch_size = 2
 opt.master_batch_size = -1  # batch size in first gpu. -1 means: master_batch_size=batch_size//len(gpus)
 opt.num_epochs = 300
 opt.label_name = ['face']
@@ -31,7 +31,7 @@ opt.min_lr_ratio = 0.05
 opt.weight_decay = 5e-4
 opt.warmup_epochs = 5
 opt.depth_wise = False  # depth_wise conv is used in 'CSPDarknet-nano'
-opt.stride = [8, 16, 32]  # YOLOX down sample ratio: 8, 16, 32
+opt.stride =  [8, 16, 32]  # [320/40 , 320/20 ,320/10]
 
 # train augments
 opt.degrees = 10.0  # rotate angle

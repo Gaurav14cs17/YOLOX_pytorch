@@ -65,7 +65,8 @@ class COCODatset(Dataset):
         self.shear = self.cfg.shear
         self.perspective = self.cfg.perspective
         self.mixup_scale = (0.5, 1.5)
-        self.enable_mosaic = self.cfg.enable_mixup
+        self.enable_mosaic = self.augment
+        self.enable_mixup = self.cfg.enable_mixup
         self.mosaic_prob = self.cfg.mosaic_prob
         self.mixup_prob = self.cfg.mixup_prob
 
@@ -100,7 +101,7 @@ class COCODatset(Dataset):
             yc = int(random.uniform(0.5 * input_h, 1.5 * input_h))
             xc = int(random.uniform(0.5 * input_w, 1.5 * input_w))
             # 3 additional image indices
-            indices = [idx] + [random.randint(0, self.num_samples - 1) for _ in range(3)]
+            indices = [idx] + [random.randint(0, self.number_of_samples - 1) for _ in range(3)]
             for i_mosaic, index in enumerate(indices):
                 img, _labels, _, _ = self.pull_item(index)
                 h0, w0 = img.shape[:2]  # orig hw
@@ -203,7 +204,7 @@ class COCODatset(Dataset):
             coco_eval.summarize()
 
         str_result = redirect_string.getvalue()
-        print(str_result)
+        #print(str_result)
 
         ap, ap_0_5, ap_7_5, ap_small, ap_medium, ap_large = coco_eval.stats[:6]
         return ap, ap_0_5, ap_7_5, ap_small, ap_medium, ap_large, str_result
@@ -247,7 +248,7 @@ class COCODatset(Dataset):
 
     def pull_item(self, index):
         res, img_info, file_name, id_ = self.annotations[index]
-        print(file_name)
+        #print(file_name)
         img_file = os.path.join(self.images_dataset_path , file_name)
         img = cv2.imread(img_file)
         assert img is not None, "error img {}".format(img_file)
