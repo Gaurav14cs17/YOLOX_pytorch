@@ -5,7 +5,7 @@ import time
 from cfg.config import opt
 from utils.util import mkdir, label_color, get_img_path
 
-from models.yolox import Detector
+from  net.Darknet_pafpn_yolox import  Detector
 
 
 def vis_result(img, results):
@@ -29,7 +29,7 @@ def vis_result(img, results):
 
 
 def detect_video():
-    detector = Detector(opt)
+    detector = Detector( opt)
     video_dir = "out.avi"
     save_folder = "output_video"
 

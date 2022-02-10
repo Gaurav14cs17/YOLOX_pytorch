@@ -184,30 +184,45 @@ class COCODatset(Dataset):
                 cls, conf, bbox = res[0], res[1], res[2]
                 detections.append({
                     'bbox': [bbox[0], bbox[1], bbox[2] - bbox[0], bbox[3] - bbox[1]],
-                    'category_id': self.class_ids[self.classes.index(cls)],
+                    'category_id': self.classes_inds[self.classes.index(cls)],
                     'image_id': int(image_id),
                     'score': float(conf)})
         return detections
 
     def run_coco_eval(self, results, save_dir):
-        convert_into_coco_format = self.convert_eval_format(results)
-        file_locations = open('{}/results.json'.format(save_dir), 'w')
-        json.dump(convert_into_coco_format, file_locations)
-
+        json.dump(self.convert_eval_format(results), open('{}/results.json'.format(save_dir), 'w'))
         coco_det = self.coco_dataset.loadRes('{}/results.json'.format(save_dir))
-        coco_eval = COCOeval(self.coco_dataset, coco_det, 'bbox')
+        coco_eval = COCOeval(self.coco, coco_det, "bbox")
         coco_eval.evaluate()
         coco_eval.accumulate()
 
         redirect_string = io.StringIO()
         with contextlib.redirect_stdout(redirect_string):
             coco_eval.summarize()
-
         str_result = redirect_string.getvalue()
-        #print(str_result)
-
         ap, ap_0_5, ap_7_5, ap_small, ap_medium, ap_large = coco_eval.stats[:6]
+        print(str_result)
         return ap, ap_0_5, ap_7_5, ap_small, ap_medium, ap_large, str_result
+
+    # def run_coco_eval(self, results, save_dir):
+    #     convert_into_coco_format = self.convert_eval_format(results)
+    #     file_locations = open('{}/results.json'.format(save_dir), 'w')
+    #     json.dump(convert_into_coco_format, file_locations)
+    #
+    #     coco_det = self.coco_dataset.loadRes('{}/results.json'.format(save_dir))
+    #     coco_eval = COCOeval(self.coco_dataset, coco_det, 'bbox')
+    #     coco_eval.evaluate()
+    #     coco_eval.accumulate()
+    #
+    #     redirect_string = io.StringIO()
+    #     with contextlib.redirect_stdout(redirect_string):
+    #         coco_eval.summarize()
+    #
+    #     str_result = redirect_string.getvalue()
+    #     #print(str_result)
+    #
+    #     ap, ap_0_5, ap_7_5, ap_small, ap_medium, ap_large = coco_eval.stats[:6]
+    #     return ap, ap_0_5, ap_7_5, ap_small, ap_medium, ap_large, str_result
 
     def _load_coco_annotations(self):
         annotations_list = []
