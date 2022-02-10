@@ -20,15 +20,15 @@ def update_nano_tiny(cfg, inp_params):
 
 opt = EasyDict()
 opt.exp_id = "coco_CSPDarknet-s_640x640"
-opt.dataset_path = "D:\labs\object_detection_model/face_dataset"
-opt.images_dataset_path = "D:\labs\object_detection_model/face_dataset"
+opt.dataset_path = "./model_data/"
+opt.images_dataset_path = "/content/drive/MyDrive/"
 # opt.dataset_path = r"D:\work\public_dataset\coco2017"  # Windows system
 opt.backbone = "CSPDarknet-nano"  # CSPDarknet-nano, CSPDarknet-tiny, CSPDarknet-s, CSPDarknet-m, l, x
 opt.input_size = (320, 320)
 opt.random_size = (14, 26)  # None; multi-size train: from 448(14*32) to 832(26*32), set None to disable it
 opt.test_size = (320, 320)  # evaluate size
 opt.gpus = "0"  # "-1" "0" "3,4,5" "0,1,2,3,4,5,6,7" # -1 for cpu
-opt.batch_size = 40
+opt.batch_size = 100
 opt.master_batch_size = -1  # batch size in first gpu. -1 means: master_batch_size=batch_size//len(gpus)
 opt.num_epochs = 300
 
@@ -118,4 +118,3 @@ if opt.random_size is None:
     opt.test_size = opt.input_size
 os.environ["CUDA_VISIBLE_DEVICES"] = opt.gpus_str
 print("\n{} final config: {}\n{}".format("-" * 20, "-" * 20, opt))
-
