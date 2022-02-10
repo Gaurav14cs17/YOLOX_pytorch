@@ -6,13 +6,13 @@ from utils.util import merge_opt
 
 def update_nano_tiny(cfg, inp_params):
     # yolo-nano, yolo-tiny config:
-    cfg.scale = cfg.scale if 'scale' in inp_params else (0.5, 1.5)
-    cfg.test_size = cfg.test_size if 'test_size' in inp_params else (416, 416)
+    cfg.scale = cfg.scale if 'scale' in inp_params else (0.1, 0.5)
+    cfg.test_size = cfg.test_size if 'test_size' in inp_params else (320, 320)
     cfg.enable_mixup = cfg.enable_mixup if 'enable_mixup' in inp_params else False
     cfg.mosaic_prob = cfg.mosaic_prob if 'mosaic_prob' in inp_params else 0.5
     if 'random_size' not in inp_params:
         if cfg.random_size is not None:
-            cfg.random_size = (10, 20)
+            cfg.random_size = (5, 10)
     if 'nano' in cfg.backbone:
         cfg.depth_wise = True
     return cfg
@@ -24,11 +24,11 @@ opt.dataset_path = "D:\labs\object_detection_model/face_dataset"
 opt.images_dataset_path = "D:\labs\object_detection_model/face_dataset"
 # opt.dataset_path = r"D:\work\public_dataset\coco2017"  # Windows system
 opt.backbone = "CSPDarknet-nano"  # CSPDarknet-nano, CSPDarknet-tiny, CSPDarknet-s, CSPDarknet-m, l, x
-opt.input_size = (640, 640)
+opt.input_size = (320, 320)
 opt.random_size = (14, 26)  # None; multi-size train: from 448(14*32) to 832(26*32), set None to disable it
-opt.test_size = (640, 640)  # evaluate size
+opt.test_size = (320, 320)  # evaluate size
 opt.gpus = "0"  # "-1" "0" "3,4,5" "0,1,2,3,4,5,6,7" # -1 for cpu
-opt.batch_size = 4
+opt.batch_size = 40
 opt.master_batch_size = -1  # batch size in first gpu. -1 means: master_batch_size=batch_size//len(gpus)
 opt.num_epochs = 300
 
