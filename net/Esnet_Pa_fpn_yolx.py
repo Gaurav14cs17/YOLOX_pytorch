@@ -4,17 +4,15 @@ from net.backbone.esnet import ESNet
 from net.neck.pa_fpn import YOLO_PA_FPN
 from net.head.yolox_head import YOLOX_Head
 from net.post_process import yolox_post_process
+from data_loader.data_augment import preproc
 import numpy as np, time
 from utils.model_utils import load_model
 from utils.util import sync_time
-from data_loader.data_augment import preproc
-#from net.loss.yolo_training import YOLOLOSS
 from net.loss.yolox_loss import YOLOXLoss
 
 
-
 class ES_YoloBody(nn.Module):
-    def __init__(self, num_classes , opt  , phi = "nano"):
+    def __init__(self, num_classes, opt, phi="nano"):
         super().__init__()
         depth_dict = {'nano': 0.33, 'tiny': 0.33, 's': 0.33, 'm': 0.67, 'l': 1.00, 'x': 1.33, }
         width_dict = {'nano': 0.25, 'tiny': 0.375, 's': 0.50, 'm': 0.75, 'l': 1.00, 'x': 1.25, }
@@ -22,32 +20,28 @@ class ES_YoloBody(nn.Module):
         depthwise = True if phi == 'nano' else False
         self.opt = opt
         self.backbone = ESNet()
+        width = 1
         self.in_channels = [96, 192, 384]
-        self.neck =  YOLO_PA_FPN(depth, width, in_channels = self.in_channel ,depthwise=depthwise)
-        #self.neck =  YOLO_PA_FPN(depth, width=1, in_channels=self.in_channels, depthwise=depthwise)
-        self.head = YOLOX_Head(num_classes, width=1, in_channels=self.in_channels, depthwise=depthwise)
+        self.neck = YOLO_PA_FPN(depth, width, in_channels=self.in_channels, depthwise=depthwise)
+        self.head = YOLOX_Head(num_classes, width=width, in_channels=self.in_channels, depthwise=depthwise)
         self.strides = [8, 16, 32]  # [320/40 , 320/20 ,320/10]
-        self.loss = YOLOXLoss(opt.label_name, reid_dim=opt.reid_dim, id_nums=opt.tracking_id_nums, strides=opt.stride,in_channels=self.in_channels)
-        # self.loss = YOLOXLoss()
+        self.loss = YOLOXLoss(opt.label_name, reid_dim=opt.reid_dim, id_nums=opt.tracking_id_nums, strides=opt.stride,
+                              in_channels=self.in_channels)
 
         self.backbone.init_weights()
         self.neck.init_weights()
         self.head.init_weights()
 
-    def forward(self, x , targets=None , show_time=False ):
+    def forward(self, x, targets=None, show_time=False):
         with torch.cuda.amp.autocast(enabled=self.opt.use_amp):
             if show_time:
                 s1 = sync_time(x)
             backbone_output = self.backbone(x)
             fpn_outs = self.neck(backbone_output)
             yolo_outputs = self.head(fpn_outs)
-
             if show_time:
                 s2 = sync_time(x)
                 print("[inference] batch={} time: {}s".format("x".join([str(i) for i in x.shape]), s2 - s1))
-
-            if targets is not None:
-                loss = self.loss(yolo_outputs, targets)
 
             if targets is not None:
                 loss = self.loss(yolo_outputs, targets)
@@ -143,10 +137,8 @@ class Detector(object):
 if __name__ == '__main__':
     from thop import profile
     from cfg.config import opt
-
     image = torch.randn(1, 3, 320, 320)
-    model_obj = ES_YoloBody(opt.num_classes, opt )
-
+    model_obj = ES_YoloBody(opt.num_classes, opt)
     inputs = torch.rand(1, 3, 416, 416)
     total_ops, total_params = profile(model_obj, (inputs,))
     print("total_ops {}G, total_params {}M".format(total_ops / 1e9, total_params / 1e6))

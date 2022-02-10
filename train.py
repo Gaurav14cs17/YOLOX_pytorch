@@ -150,8 +150,8 @@ def train(model, scaler, train_loader, val_loader, optimizer, lr_scheduler, star
 
 def main(use_sgd = True ):
     # define model with loss
-    #model = ES_YoloBody(opt.num_classes , opt )
-    model = YoloBody_Nano(opt.num_classes , opt )
+    model = ES_YoloBody(opt.num_classes , opt )
+    #model = YoloBody_Nano(opt.num_classes , opt )
 
     # define optimizer
     pg_BatchNorm, pg_weight, pg_bias = [], [], []  # optimizer parameter groups
