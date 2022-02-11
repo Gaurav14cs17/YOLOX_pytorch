@@ -22,20 +22,22 @@ class Detector_shufflenet(nn.Module):
         self.backbone = ShuffleNetV2(stage_out_channels, load_param=False)
         self.neck = LightFPN(stage_out_channels[-3] + stage_out_channels[-2],
                             stage_out_channels[-2] + stage_out_channels[-1], stage_out_channels[-1], out_depth)
-        self.head = YOLOX_Head(num_classes, width=1, in_channels=self.in_channel, depthwise=True)
+        self.head = YOLOX_Head(num_classes, width=1, in_channels=self.in_channel, out_f= 72 , depthwise=True)
 
         self.loss = YOLOXLoss(opt.label_name, reid_dim=opt.reid_dim, id_nums=opt.tracking_id_nums, strides=opt.stride,
                               in_channels=self.in_channel)
 
-        self.backbone.init_weights()
+        #self.backbone.init_weights()
         self.neck.init_weights()
         self.head.init_weights()
 
     def forward(self, x, targets=None, show_time=False):
+        if show_time:
+            s1 = sync_time(x)
         C1, C2, C3 = self.backbone(x)
-        #print(C1.shape, C2.shape, C3.shape)
+
         S1, S2, S3 = self.neck(C1, C2, C3)
-        #print(S2.shape, S3.shape, S1.shape)
+
         yolo_outputs = self.head.forward([S1, S2, S3])
 
         if show_time:
@@ -84,7 +86,7 @@ def fuse_model(model):
 class Detector(object):
     def __init__(self, cfg):
         self.opt = cfg
-        self.opt.device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+        self.opt.device = torch.device('cpu' if torch.cuda.is_available() else 'cpu')
         self.opt.pretrained = None
         self.model = Detector_shufflenet(self.opt.num_classes , self.opt)
         print("Loading model {}".format(self.opt.load_model))

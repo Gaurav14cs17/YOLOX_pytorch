@@ -66,7 +66,7 @@ opt.mixup_prob = 1.
 opt.data_num_workers = 1
 
 opt.momentum = 0.9
-opt.vis_thresh = 0.3  # inference confidence, used in 'predict.py'
+opt.vis_thresh = 0.1  # inference confidence, used in 'predict.py'
 opt.load_model = ''
 opt.ema = True  # False, Exponential Moving Average
 opt.grad_clip = dict(max_norm=35, norm_type=2)  # None, clip gradient makes training more stable

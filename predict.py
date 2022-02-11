@@ -5,7 +5,9 @@ import time
 from cfg.config import opt
 from utils.util import mkdir, label_color, get_img_path
 
-from  net.Darknet_pafpn_yolox import  Detector
+#from  net.Darknet_pafpn_yolox import  Detector
+from net.detector import Detector
+
 
 
 def vis_result(img, results):

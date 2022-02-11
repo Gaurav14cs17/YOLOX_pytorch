@@ -96,7 +96,7 @@ class ShuffleNetV2(nn.Module):
                 input_channel = output_channel
             setattr(self, stage_names[idxstage], nn.Sequential(*stageSeq))
 
-        if load_param == True:
+        if load_param == False:
             self._initialize_weights()
         else:
             print("load param...")
@@ -118,7 +118,7 @@ class ShuffleNetV2(nn.Module):
     def _initialize_weights(self):
         print("initialize_weights...")
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        self.load_state_dict(torch.load("./model/backbone/backbone.pth", map_location=device), strict=True)
+        self.load_state_dict(torch.load("./net/backbone/backbone.pth", map_location=device), strict=True)
 
 
 if __name__ == "__main__":

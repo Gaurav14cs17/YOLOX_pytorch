@@ -7,9 +7,11 @@ __all__ = ['YOLOX_Head']
 
 
 class YOLOX_Head(nn.Module):
-    def __init__(self, num_classes=80, reid_dim=0, width=1.0, in_channels=[256, 512, 1024], act="silu",
+    def __init__(self, num_classes=80, reid_dim=0, width=1.0, in_channels=[256, 512, 1024], act="silu",out_f = 256 ,
                  depthwise=False):
         super().__init__()
+
+        self.out_f =out_f
 
         self.n_anchors = 1
         self.num_classes = num_classes
@@ -30,7 +32,7 @@ class YOLOX_Head(nn.Module):
         for i in range(len(in_channels)):
             self.stems.append(
                 BaseConv(in_channels=int(in_channels[i] * width),
-                         out_channels=int(256 * width),
+                         out_channels=int(self.out_f * width),
                          ksize=1,
                          stride=1,
                          act=act))
@@ -38,15 +40,15 @@ class YOLOX_Head(nn.Module):
                 nn.Sequential(
                     *[
                         Conv(
-                            in_channels=int(256 * width),
-                            out_channels=int(256 * width),
+                            in_channels=int(self.out_f * width),
+                            out_channels=int(self.out_f * width),
                             ksize=3,
                             stride=1,
                             act=act,
                         ),
                         Conv(
-                            in_channels=int(256 * width),
-                            out_channels=int(256 * width),
+                            in_channels=int(self.out_f * width),
+                            out_channels=int(self.out_f * width),
                             ksize=3,
                             stride=1,
                             act=act,
@@ -58,15 +60,15 @@ class YOLOX_Head(nn.Module):
                 nn.Sequential(
                     *[
                         Conv(
-                            in_channels=int(256 * width),
-                            out_channels=int(256 * width),
+                            in_channels=int(self.out_f * width),
+                            out_channels=int(self.out_f * width),
                             ksize=3,
                             stride=1,
                             act=act,
                         ),
                         Conv(
-                            in_channels=int(256 * width),
-                            out_channels=int(256 * width),
+                            in_channels=int(self.out_f * width),
+                            out_channels=int(self.out_f * width),
                             ksize=3,
                             stride=1,
                             act=act,
@@ -76,7 +78,7 @@ class YOLOX_Head(nn.Module):
             )
             self.cls_preds.append(
                 nn.Conv2d(
-                    in_channels=int(256 * width),
+                    in_channels=int(self.out_f * width),
                     out_channels=self.n_anchors * self.num_classes,
                     kernel_size=1,
                     stride=1,
@@ -85,7 +87,7 @@ class YOLOX_Head(nn.Module):
             )
             self.reg_preds.append(
                 nn.Conv2d(
-                    in_channels=int(256 * width),
+                    in_channels=int(self.out_f * width),
                     out_channels=4,
                     kernel_size=1,
                     stride=1,
@@ -94,7 +96,7 @@ class YOLOX_Head(nn.Module):
             )
             self.obj_preds.append(
                 nn.Conv2d(
-                    in_channels=int(256 * width),
+                    in_channels=int(self.out_f * width),
                     out_channels=self.n_anchors * 1,
                     kernel_size=1,
                     stride=1,
@@ -104,7 +106,7 @@ class YOLOX_Head(nn.Module):
             if self.reid_dim > 0:
                 self.reid_preds.append(
                     nn.Conv2d(
-                        in_channels=int(256 * width),
+                        in_channels=int(self.out_f * width),
                         out_channels=self.reid_dim,
                         kernel_size=1,
                         stride=1,

@@ -41,7 +41,9 @@ def yolox_post_process(outputs, down_strides, num_classes, conf_thre, nms_thre, 
     for i, image_pred in enumerate(outputs):
         # Get score and class with highest confidence
         class_conf, class_pred = torch.max(image_pred[:, 5: 5 + num_classes], 1, keepdim=True)
+        #print(class_conf, class_pred)
         conf_mask = (image_pred[:, 4] * class_conf.squeeze() >= conf_thre).squeeze()
+        #print("conf_mask" , conf_mask)
         # _, conf_mask = torch.topk((image_pred[:, 4] * class_conf.squeeze()), 1000)
         # Detections ordered as (x1, y1, x2, y2, obj_conf, class_conf, class_pred)
         if reid_dim > 0:
