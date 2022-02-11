@@ -67,13 +67,13 @@ opt.data_num_workers = 1
 
 opt.momentum = 0.9
 opt.vis_thresh = 0.3  # inference confidence, used in 'predict.py'
-opt.load_model = ''
+opt.load_model = 'D:\labs\object_detection_model\YOLOX_pytorch\cfg\exp\coco_CSPDarknet-s_640x640\model_last.pth'
 opt.ema = True  # False, Exponential Moving Average
 opt.grad_clip = dict(max_norm=35, norm_type=2)  # None, clip gradient makes training more stable
 opt.print_iter = 1  # print loss every 1 iteration
 opt.val_intervals = 2  # evaluate val dataset and save best ckpt every 2 epoch
 opt.save_epoch = 1  # save check point every 1 epoch
-opt.resume = False  # resume from 'model_last.pth' when set True
+opt.resume = True  # resume from 'model_last.pth' when set True
 opt.use_amp = False  # True, Automatic mixed precision
 opt.cuda_benchmark = True
 opt.nms_thresh = 0.65  # nms IOU threshold in post process
