@@ -73,7 +73,7 @@ opt.grad_clip = dict(max_norm=35, norm_type=2)  # None, clip gradient makes trai
 opt.print_iter = 1  # print loss every 1 iteration
 opt.val_intervals = 2  # evaluate val dataset and save best ckpt every 2 epoch
 opt.save_epoch = 1  # save check point every 1 epoch
-opt.resume = True  # resume from 'model_last.pth' when set True
+opt.resume = False  # resume from 'model_last.pth' when set True
 opt.use_amp = False  # True, Automatic mixed precision
 opt.cuda_benchmark = True
 opt.nms_thresh = 0.65  # nms IOU threshold in post process
