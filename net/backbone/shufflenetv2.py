@@ -8,15 +8,12 @@ class ShuffleV2Block(nn.Module):
         super(ShuffleV2Block, self).__init__()
         self.stride = stride
         assert stride in [1, 2]
-
         self.mid_channels = mid_channels
         self.ksize = ksize
         pad = ksize // 2
         self.pad = pad
         self.inp = inp
-
         outputs = oup - inp
-
         branch_main = [
             # pw
             nn.Conv2d(inp, mid_channels, 1, 1, 0, bias=False),
@@ -31,7 +28,6 @@ class ShuffleV2Block(nn.Module):
             nn.ReLU(inplace=True),
         ]
         self.branch_main = nn.Sequential(*branch_main)
-
         if stride == 2:
             branch_proj = [
                 # dw
@@ -65,12 +61,10 @@ class ShuffleV2Block(nn.Module):
 
 
 class ShuffleNetV2(nn.Module):
-    def __init__(self, stage_out_channels, load_param):
+    def __init__(self, stage_out_channels, load_param=True):
         super(ShuffleNetV2, self).__init__()
-
         self.stage_repeats = [4, 8, 4]
         self.stage_out_channels = stage_out_channels
-
         # building first layer
         input_channel = self.stage_out_channels[1]
         self.first_conv = nn.Sequential(
@@ -88,11 +82,9 @@ class ShuffleNetV2(nn.Module):
             stageSeq = []
             for i in range(numrepeat):
                 if i == 0:
-                    stageSeq.append(ShuffleV2Block(input_channel, output_channel,
-                                                   mid_channels=output_channel // 2, ksize=3, stride=2))
+                    stageSeq.append(ShuffleV2Block(input_channel, output_channel,mid_channels=output_channel // 2, ksize=3, stride=2))
                 else:
-                    stageSeq.append(ShuffleV2Block(input_channel // 2, output_channel,
-                                                   mid_channels=output_channel // 2, ksize=3, stride=1))
+                    stageSeq.append(ShuffleV2Block(input_channel // 2, output_channel,mid_channels=output_channel // 2, ksize=3, stride=1))
                 input_channel = output_channel
             setattr(self, stage_names[idxstage], nn.Sequential(*stageSeq))
 
@@ -122,9 +114,20 @@ class ShuffleNetV2(nn.Module):
 
 
 if __name__ == "__main__":
-    model = ShuffleNetV2()
+    from thop import profile
+    import time
+    model = ShuffleNetV2([-1, 24, 48, 96, 192])
+    model.eval()
     print(model)
     test_data = torch.rand(1, 3, 320, 320)
+    t = time.time()
     test_outputs = model(test_data)
-    for out in test_outputs:
-        print(out.size())
+    print(time.time() - t)
+
+    inputs = torch.rand(1, 3, 320, 320)
+    total_ops, total_params = profile(model, (inputs,))
+    print("total_ops {}G, total_params {}M".format(total_ops / 1e9, total_params / 1e6))
+    '''
+    total_ops 0.0648288G, total_params 0.143136M
+    '''
+

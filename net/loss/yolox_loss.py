@@ -214,6 +214,13 @@ class YOLOXLoss(nn.Module):
                 reid_loss += self.reid_loss(reid_output, this_cls_tracking_id)
 
         reg_weight = 5.0
+        '''
+        lbox *= 3.2
+        lobj *= 64
+        lcls *= 32
+        loss = lbox + lobj + lcls
+        '''
+        #loss_cls = loss_cls*5
         loss = reg_weight * loss_iou + loss_obj + loss_cls + loss_l1 + reid_loss
         fg_r = torch.tensor(num_fg / max(num_gts, 1), device=outputs.device, dtype=dtype)
         return loss, reg_weight * loss_iou, loss_obj, loss_cls, loss_l1, reid_loss, fg_r

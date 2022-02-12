@@ -25,7 +25,8 @@ def make_divisible(v, divisor=16, min_value=None):
 class ConvBNLayer(nn.Module):
     def __init__(self, in_channels, out_channels, kernel_size, stride, padding, groups=1, act=None):
         super(ConvBNLayer, self).__init__()
-        self._conv = nn.Conv2d(in_channels=in_channels, out_channels=out_channels, kernel_size=kernel_size,stride=stride,padding=padding, bias=False)
+        self._conv = nn.Conv2d(in_channels=in_channels, out_channels=out_channels, kernel_size=kernel_size,
+                               stride=stride, padding=padding, groups=groups, bias=False)
         self._batch_norm = nn.BatchNorm2d(out_channels)
         self.act = nn.Identity() if act is None else acts[act]
 
@@ -36,47 +37,23 @@ class ConvBNLayer(nn.Module):
         return y
 
 
+class SEModule(nn.Module):
+    def __init__(self, channel, reduction=4):
+        super(SEModule, self).__init__()
+        self.avg_pool = nn.AdaptiveAvgPool2d(1)
+        self.conv1 = nn.Conv2d(in_channels=channel, out_channels=channel // reduction, kernel_size=(1, 1),
+                               stride=(1, 1), padding=0, groups=min(channel, channel // reduction))
+        self.conv2 = nn.Conv2d(in_channels=channel // reduction, out_channels=channel, kernel_size=(1, 1),
+                               stride=(1, 1), padding=0, groups=min(channel, channel // reduction))
 
+    def forward(self, inputs):
+        outputs = self.avg_pool(inputs)
+        outputs = self.conv1(outputs)
+        outputs = F.relu(outputs)
+        outputs = self.conv2(outputs)
+        outputs = F.hardsigmoid(outputs)
+        return inputs * outputs
 
-class BlockTypeA(nn.Module):
-    def __init__(self, in_c1, in_c2, out_c1, out_c2, upscale = True):
-        super(BlockTypeA, self).__init__()
-        self.conv1 = nn.Sequential(
-            nn.Conv2d(in_c2, out_c2, kernel_size=(1 , 1)),
-            nn.BatchNorm2d(out_c2),
-            nn.ReLU(inplace=True)
-        )
-        self.conv2 = nn.Sequential(
-            nn.Conv2d(in_c1, out_c1, kernel_size=(1 , 1)),
-            nn.BatchNorm2d(out_c1),
-            nn.ReLU(inplace=True)
-        )
-        self.upscale = upscale
-
-    def forward(self, a, b):
-        b = self.conv1(b)
-        a = self.conv2(a)
-        b = F.interpolate(b, scale_factor=1.0, mode='bilinear', align_corners=True)
-        return torch.cat((a, b), dim=1)
-
-class BlockTypeB(nn.Module):
-    def __init__(self, in_c, out_c):
-        super(BlockTypeB, self).__init__()
-        self.conv1 = nn.Sequential(
-            nn.Conv2d(in_c, in_c,  kernel_size=3, padding=1),
-            nn.BatchNorm2d(in_c),
-            nn.ReLU()
-        )
-        self.conv2 = nn.Sequential(
-            nn.Conv2d(in_c, out_c, kernel_size=3, padding=1),
-            nn.BatchNorm2d(out_c),
-            nn.ReLU()
-        )
-
-    def forward(self, x):
-        x = self.conv1(x) + x
-        x = self.conv2(x)
-        return x
 
 def channel_shuffle(x: Tensor, groups: int) -> Tensor:
     batchsize, num_channels, height, width = x.size()
@@ -90,121 +67,154 @@ def channel_shuffle(x: Tensor, groups: int) -> Tensor:
 class InvertedResidual(nn.Module):
     def __init__(self, in_channels, mid_channels, out_channels, stride, act="relu"):
         super(InvertedResidual, self).__init__()
-        self._conv_pw = ConvBNLayer(in_channels=in_channels//2, out_channels=mid_channels // 2, kernel_size=1,stride=1, padding=0, act=act)
-        self._conv_dw = ConvBNLayer(in_channels=mid_channels // 2, out_channels=mid_channels // 2, kernel_size=3,stride=stride, padding=1, act=None)
-        self._se = BlockTypeA(mid_channels//2 , mid_channels//2 , mid_channels//2 , mid_channels//2 )
-        self._conv_linear = ConvBNLayer(in_channels=mid_channels, out_channels=out_channels // 2, kernel_size=1, stride=1,padding=0, act=act)
+        self._conv_pw = ConvBNLayer(in_channels=in_channels // 2, out_channels=mid_channels // 2, kernel_size=1,
+                                    stride=1, padding=0, groups=4, act=act)
+        self._conv_dw = ConvBNLayer(in_channels=mid_channels // 2, out_channels=mid_channels // 2, kernel_size=3,
+                                    stride=stride, padding=1, groups=mid_channels // 2, act=None)
+        self._se = SEModule(mid_channels)
+        self._conv_linear = ConvBNLayer(in_channels=mid_channels, out_channels=out_channels // 2, kernel_size=1,
+                                        stride=1, padding=0, groups=4, act=act)
 
     def forward(self, inputs):
         x1, x2 = torch.chunk(inputs, chunks=2, dim=1)
-        print()
         x2 = self._conv_pw(x2)
         x3 = self._conv_dw(x2)
-        x3 = self._se(x2, x3)
+        x3 = torch.cat([x2, x3], dim=1)
+        #x3 = self._se(x3)
         x3 = self._conv_linear(x3)
-        out = torch.cat([x1, x3], axis=1)
+        out = torch.cat([x1, x3], dim=1)
         out = channel_shuffle(out, 2)
-        print("INver-->" , out.shape)
         return out
 
 
+class InvertedResidualDS(nn.Module):
+    def __init__(self, in_channels, mid_channels, out_channels, stride, act="relu"):
+        super(InvertedResidualDS, self).__init__()
+        # branch1
+        self._conv_dw_1 = ConvBNLayer(in_channels=in_channels, out_channels=in_channels, kernel_size=3, stride=stride,
+                                      padding=1, groups=in_channels//2, act=None)
+        self._conv_linear_1 = ConvBNLayer(in_channels=in_channels, out_channels=out_channels // 2, kernel_size=1,
+                                          stride=1, padding=0, groups=1, act=act)
+        # branch2
+        self._conv_pw_2 = ConvBNLayer(in_channels=in_channels, out_channels=mid_channels // 2, kernel_size=1, stride=1,
+                                      padding=0, groups=2, act=act)
+        self._conv_dw_2 = ConvBNLayer(in_channels=mid_channels // 2, out_channels=mid_channels // 2, kernel_size=3,
+                                      stride=stride, padding=1, groups=mid_channels // 2, act=None)
+
+        self._se = SEModule(mid_channels // 2)
+        self._conv_linear_2 = ConvBNLayer(in_channels=mid_channels // 2, out_channels=out_channels // 2, kernel_size=1,
+                                          stride=1, padding=0, groups=4, act=act)
+        self._conv_dw_mv1 = ConvBNLayer(in_channels=out_channels, out_channels=out_channels, kernel_size=3, stride=1,
+                                        padding=1, groups=out_channels, act="hard_swish")
+        self._conv_pw_mv1 = ConvBNLayer(in_channels=out_channels, out_channels=out_channels, kernel_size=1, stride=1,
+                                        padding=0, groups=1, act="hard_swish")
+
+    def forward(self, inputs):
+        x1 = self._conv_dw_1(inputs)
+        x1 = self._conv_linear_1(x1)
+        x2 = self._conv_pw_2(inputs)
+        x2 = self._conv_dw_2(x2)
+        x2 = self._se(x2)
+        x2 = self._conv_linear_2(x2)
+        out = torch.cat([x1, x2], dim=1)
+        out = self._conv_dw_mv1(out)
+        out = self._conv_pw_mv1(out)
+        return out
 
 
+class BasicBlock(nn.Module):
+    expansion = 1
 
+    def __init__(self, in_channels, out_channels, stride=1):
+        super(BasicBlock, self).__init__()
+        self.conv1 = nn.Conv2d(in_channels, out_channels, kernel_size=(3, 3), stride=(stride, stride), padding=1, bias=False)
+        self.bn1 = nn.BatchNorm2d(out_channels)
+        self.conv2 = nn.Conv2d(out_channels, out_channels, kernel_size=(3, 3), stride=(1, 1), padding=1, bias=False)
+        self.bn2 = nn.BatchNorm2d(out_channels)
 
-
-def _make_divisible(v, divisor, min_value=None):
-    if min_value is None:
-        min_value = divisor
-    new_v = max(min_value, int(v + divisor / 2) // divisor * divisor)
-    if new_v < 0.9 * v:
-        new_v += divisor
-    return new_v
-
-
-
-
-
-
-
-
-
-class SS_FNet(nn.Module):
-    def __init__(self, pretrained=True):
-        super(SS_FNet, self).__init__()
-        block = InvertedResidual
-        input_channel = 32
-        width_mult = 1.0
-        round_nearest = 8
-
-        inverted_residual_setting = [
-            #c, n, s
-            [16, 1, 1],
-            [32, 1, 2],
-           # [2, 3, 2],
-           # [64, 4, 2],
-        ]
-        input_channel = 16
-        features = [ConvBNLayer(3, input_channel , kernel_size=3 ,stride=1 , padding=1 , act = "relu" )]
-
-        for c, n, s in inverted_residual_setting:
-            output_channel = c
-            for i in range(n):
-                stride = s if i == 0 else 1
-                features.append(block(input_channel, output_channel*2 ,output_channel, stride ))
-                input_channel = output_channel*2
-        self.features = nn.Sequential(*features)
-
-        self.fpn_selected = [3, 6, 10]
-
-
-
-    def _forward_impl(self, x):
-        # This exists since TorchScript doesn't support inheritance, so the superclass method
-        # (this one) needs to have a name other than `forward` that can be accessed in a subclass
-        fpn_features = []
-        for i, f in enumerate(self.features):
-            if i > self.fpn_selected[-1]:
-                break
-
-            print(i , x.shape)
-            x = f(x)
-            if i in self.fpn_selected:
-                fpn_features.append(x)
-
-        c2, c3, c4 = fpn_features
-        return c2, c3, c4
-
+        self.shortcut = nn.Sequential()
+        if stride != 1 or in_channels != self.expansion * out_channels:
+            self.shortcut = nn.Sequential(
+                nn.Conv2d(in_channels, self.expansion * out_channels, kernel_size=(1, 1), stride=(stride, stride), bias=False),
+                nn.BatchNorm2d(self.expansion * out_channels)
+            )
 
     def forward(self, x):
-        return self._forward_impl(x)
+        out = F.relu(self.bn1(self.conv1(x)))
+        out = self.bn2(self.conv2(out))
+        out += self.shortcut(x)
+        out = F.relu(out)
+        return out
 
 
-    def init_weights(self):
-        for m in self.modules():
-            if isinstance(m, nn.Conv2d):
-                nn.init.kaiming_normal_(m.weight, mode='fan_out')
-                if m.bias is not None:
-                    nn.init.zeros_(m.bias)
-            elif isinstance(m, nn.BatchNorm2d):
-                nn.init.ones_(m.weight)
-                nn.init.zeros_(m.bias)
-            elif isinstance(m, nn.Linear):
-                nn.init.normal_(m.weight, 0, 0.01)
-                nn.init.zeros_(m.bias)
+class Bottleneck(nn.Module):
+    expansion = 4
+    def __init__(self, in_channels , out_channels, stride=1):
+        super(Bottleneck, self).__init__()
+        self.conv1 = nn.Conv2d(in_channels, out_channels, kernel_size=(1, 1), bias=False)
+        self.bn1 = nn.BatchNorm2d(out_channels)
+        self.conv2 = nn.Conv2d(out_channels, out_channels, kernel_size=(3, 3),
+                               stride=(stride, stride), padding=1, bias=False)
+        self.bn2 = nn.BatchNorm2d(out_channels)
+        self.conv3 = nn.Conv2d(out_channels, self.expansion *
+                               out_channels, kernel_size=(1, 1), bias=False)
+        self.bn3 = nn.BatchNorm2d(self.expansion * out_channels)
+
+        self.shortcut = nn.Sequential()
+        if stride != 1 or in_channels != self.expansion * out_channels:
+            self.shortcut = nn.Sequential(
+                nn.Conv2d(in_channels, self.expansion * out_channels, kernel_size=(1, 1), stride=(stride, stride), bias=False),
+                nn.BatchNorm2d(self.expansion * out_channels)
+                )
+
+    def forward(self, x):
+        out = F.relu(self.bn1(self.conv1(x)))
+        out = F.relu(self.bn2(self.conv2(out)))
+        out = self.bn3(self.conv3(out))
+        out += self.shortcut(x)
+        out = F.relu(out)
+        return out
+
+
+class SSNet(nn.Module):
+    def __init__(self ):
+        super(SSNet, self).__init__()
+        self.conv1 = nn.Conv2d(in_channels=3 , out_channels=16 , kernel_size=(3,3) , stride=(1,1))
+        self.resd_block = BasicBlock(16 , 32 )
+        self.inverted_residual_block  = InvertedResidual( 16 , 64 , 64  , stride=1)
+        #self.inverted_IDs_block  = InvertedResidualDS(40 , 64 , 64 , stride = 2 )
+
+
+    def forward(self , x ):
+        x = self.conv1(x)
+        x_resd = self.resd_block(x)
+        #x_inverted_block = self.inverted_residual_block(x)
+        #print(x_inverted_block.shape)
+        #x_inverted_ids = self.inverted_IDs_block(x_inverted_block)
+        return  None
+
+
+if __name__ == "__main__":
+    from thop import profile
+    import time
+
+    m = SSNet()
+    # m.init_weights()
+    m.eval()
+    inputs = torch.rand(1, 3, 320, 320)
+    # total_ops, total_params = profile(m, (inputs,))
+    # print("total_ops {}G, total_params {}M".format(total_ops / 1e9, total_params / 1e6))
+    t1 = time.time()
+    level_outputs = m(inputs)
+    print(time.time() -t1 )
+
+        
+    
 
 
 
-
-
-
-
-
-
-if __name__ == '__main__':
-    #obj  = InvertedResidual(64 , 128 , 256 , 2 )
-    obj = SS_FNet()
-    print(obj)
-    image = torch.randn(1, 3 , 320 , 320  )
-    out = obj(image)
-    print(out.shape)
+    '''
+   total_ops 1.925401368G, total_params 0.0254M
+    (1, 48, 318, 318)
+    (1, 64, 159, 159)
+    '''

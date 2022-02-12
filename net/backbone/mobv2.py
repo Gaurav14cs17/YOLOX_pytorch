@@ -51,12 +51,12 @@ class BlockTypeC(nn.Module):
     def __init__(self, in_c, out_c):
         super(BlockTypeC, self).__init__()
         self.conv1 = nn.Sequential(
-            nn.Conv2d(in_c, in_c,  kernel_size=3, padding=5, dilation=5),
+            nn.Conv2d(in_c, in_c,  kernel_size=(3,3), padding=5, dilation=5),
             nn.BatchNorm2d(in_c),
             nn.ReLU()
         )
         self.conv2 = nn.Sequential(
-            nn.Conv2d(in_c, in_c,  kernel_size=3, padding=1),
+            nn.Conv2d(in_c, in_c,  kernel_size=(3,3), padding=1),
             nn.BatchNorm2d(in_c),
             nn.ReLU()
         )
@@ -139,24 +139,12 @@ class InvertedResidual(nn.Module):
 
 class MobileNetV2(nn.Module):
     def __init__(self, pretrained=True):
-        """
-        MobileNet V2 main class
-        Args:
-            num_classes (int): Number of classes
-            width_mult (float): Width multiplier - adjusts number of channels in each layer by this amount
-            inverted_residual_setting: Network structure
-            round_nearest (int): Round the number of channels in each layer to be a multiple of this number
-            Set to 1 to turn off rounding
-            block: Module specifying inverted residual building block for mobilenet
-        """
         super(MobileNetV2, self).__init__()
-
         block = InvertedResidual
         input_channel = 32
         last_channel = 1280
         width_mult = 1.0
         round_nearest = 8
-
         inverted_residual_setting = [
             # t, c, n, s
             [1, 16, 1, 1],

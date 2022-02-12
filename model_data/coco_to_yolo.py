@@ -82,7 +82,26 @@ def convert_coco_json_to_yolo_txt(output_path, json_file):
     print("Converting COCO Json to YOLO txt finished!")
 
 
-output_path = "D:/labs/object_detection_model/face_dataset/WIDER_val_yolo_ann"
-json_file = "D:/labs/object_detection_model/YOLOX_pytorch/model_data/annotations/instances_val2017.json"
 
-convert_coco_json_to_yolo_txt(output_path , json_file)
+def create_txt(output_path, json_file , name = 'train.txt'):
+    anno_txt = os.path.join(os.path.join(output_path , name))
+    with open(json_file) as f:
+        json_data = json.load(f)
+
+    with open(anno_txt, "w") as f:
+        for image in tqdm(json_data["images"], desc="Annotation txt for each iamge"):
+            img_id = image["id"]
+            img_name = image["file_name"]
+            img_width = image["width"]
+            img_height = image["height"]
+            anno_in_image = [anno for anno in json_data["annotations"] if anno["image_id"] == img_id]
+            full_image_path = os.path.join(output_path , img_name)
+            f.write(f"{full_image_path}\n")
+    print("YOLO txt finished!")
+
+output_path = "D:/labs/object_detection_model/face_dataset"
+json_file_val = "D:/labs/object_detection_model/YOLOX_pytorch/model_data/annotations/instances_val2017.json"
+json_file_train = "D:/labs/object_detection_model/YOLOX_pytorch/model_data/annotations/instances_train2017.json"
+
+create_txt(output_path , json_file_val , 'val.txt')
+create_txt(output_path , json_file_train , 'train.txt')
