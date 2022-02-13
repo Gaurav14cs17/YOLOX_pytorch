@@ -1,3 +1,4 @@
+
 import os
 import sys
 from easydict import EasyDict
@@ -6,29 +7,29 @@ from utils.util import merge_opt
 
 def update_nano_tiny(cfg, inp_params):
     # yolo-nano, yolo-tiny config:
-    cfg.scale = cfg.scale if 'scale' in inp_params else (0.3, 1.0)
+    cfg.scale = cfg.scale if 'scale' in inp_params else (0.1, 0.5)
     cfg.test_size = cfg.test_size if 'test_size' in inp_params else (320, 320)
     cfg.enable_mixup = cfg.enable_mixup if 'enable_mixup' in inp_params else False
     cfg.mosaic_prob = cfg.mosaic_prob if 'mosaic_prob' in inp_params else 0.5
     if 'random_size' not in inp_params:
         if cfg.random_size is not None:
-            cfg.random_size = (8, 12)
+            cfg.random_size = (5, 10)
     if 'nano' in cfg.backbone:
         cfg.depth_wise = True
     return cfg
 
 
 opt = EasyDict()
-opt.exp_id = "coco_shuffle_net"
+opt.exp_id = "coco_CSPDarknet-s_640x640"
 opt.dataset_path = "./model_data/"
-opt.images_dataset_path = "D:/labs/object_detection_model/face_dataset"
+opt.images_dataset_path = "/content/drive/MyDrive/"
 # opt.dataset_path = r"D:\work\public_dataset\coco2017"  # Windows system
-opt.backbone = "shuffle-nano"  # CSPDarknet-nano, CSPDarknet-tiny, CSPDarknet-s, CSPDarknet-m, l, x
+opt.backbone = "CSPDarknet-nano"  # CSPDarknet-nano, CSPDarknet-tiny, CSPDarknet-s, CSPDarknet-m, l, x
 opt.input_size = (320, 320)
 opt.random_size = (14, 26)  # None; multi-size train: from 448(14*32) to 832(26*32), set None to disable it
 opt.test_size = (320, 320)  # evaluate size
 opt.gpus = "0"  # "-1" "0" "3,4,5" "0,1,2,3,4,5,6,7" # -1 for cpu
-opt.batch_size = 20
+opt.batch_size = 100
 opt.master_batch_size = -1  # batch size in first gpu. -1 means: master_batch_size=batch_size//len(gpus)
 opt.num_epochs = 300
 
@@ -51,7 +52,7 @@ opt.min_lr_ratio = 0.05
 opt.weight_decay = 5e-4
 opt.warmup_epochs = 5
 opt.depth_wise = False  # depth_wise conv is used in 'CSPDarknet-nano'
-opt.stride = [ 16,  32]  # YOLOX down sample ratio: 8, 16, 32
+opt.stride = [8, 16, 32]  # YOLOX down sample ratio: 8, 16, 32
 
 # train augments
 opt.degrees = 10.0  # rotate angle
@@ -66,14 +67,14 @@ opt.mixup_prob = 1.
 opt.data_num_workers = 1
 
 opt.momentum = 0.9
-opt.vis_thresh = 0.02  # inference confidence, used in 'predict.py'
-opt.load_model = 'D:/labs/object_detection_model/YOLOX_pytorch/cfg/exp/coco_shuffle_net/model_last.pth'
+opt.vis_thresh = 0.3  # inference confidence, used in 'predict.py'
+opt.load_model = ''
 opt.ema = True  # False, Exponential Moving Average
 opt.grad_clip = dict(max_norm=35, norm_type=2)  # None, clip gradient makes training more stable
 opt.print_iter = 1  # print loss every 1 iteration
 opt.val_intervals = 2  # evaluate val dataset and save best ckpt every 2 epoch
 opt.save_epoch = 1  # save check point every 1 epoch
-opt.resume = True  # resume from 'model_last.pth' when set True
+opt.resume = False  # resume from 'model_last.pth' when set True
 opt.use_amp = False  # True, Automatic mixed precision
 opt.cuda_benchmark = True
 opt.nms_thresh = 0.65  # nms IOU threshold in post process
