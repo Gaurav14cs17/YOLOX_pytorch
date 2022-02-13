@@ -52,7 +52,7 @@ opt.min_lr_ratio = 0.05
 opt.weight_decay = 5e-4
 opt.warmup_epochs = 5
 opt.depth_wise = False  # depth_wise conv is used in 'CSPDarknet-nano'
-opt.stride = [8, 16, 32]  # YOLOX down sample ratio: 8, 16, 32
+opt.stride = [16, 32]  # YOLOX down sample ratio: 8, 16, 32
 
 # train augments
 opt.degrees = 10.0  # rotate angle
