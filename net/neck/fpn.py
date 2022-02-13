@@ -7,10 +7,10 @@ class LightFPN(nn.Module):
     def __init__(self, input1_depth , input2_depth, input3_depth, out_depth):
         super(LightFPN, self).__init__()
 
-        self.conv1x1_1 = nn.Sequential(nn.Conv2d(input1_depth, out_depth, 1, 1, 0, bias=False),
-                                       nn.BatchNorm2d(out_depth),
-                                       nn.ReLU(inplace=True)
-                                       )
+        # self.conv1x1_1 = nn.Sequential(nn.Conv2d(input1_depth, out_depth, 1, 1, 0, bias=False),
+        #                                nn.BatchNorm2d(out_depth),
+        #                                nn.ReLU(inplace=True)
+        #                                )
 
         self.conv1x1_2 = nn.Sequential(nn.Conv2d(input2_depth, out_depth, 1, 1, 0, bias=False),
                                        nn.BatchNorm2d(out_depth),
@@ -29,10 +29,10 @@ class LightFPN(nn.Module):
         P2 = torch.cat((P2, C2), 1)
         S2 = self.conv1x1_2(P2)
 
-        P1 = F.interpolate(C2 , scale_factor=2)
-        P1 = torch.cat((P1 ,C1 ) , 1 )
-        S1 = self.conv1x1_1(P1)
-        return S2, S3 , S1
+        # P1 = F.interpolate(C2 , scale_factor=2)
+        # P1 = torch.cat((P1 ,C1 ) , 1 )
+        # S1 = self.conv1x1_1(P1)
+        return  1.0 , S2, S3
 
     def init_weights(self):
         for m in self.modules():

@@ -96,7 +96,7 @@ def detect():
 
 
 if __name__ == "__main__":
-    opt.load_model = opt.load_model if opt.load_model != "" else os.path.join(opt.save_dir, "model_best.pth")
+    opt.load_model = "D:/labs/object_detection_model/YOLOX_pytorch/cfg/exp/model_5.pth"#opt.load_model if opt.load_model != "" else os.path.join(opt.save_dir, "model_best.pth")
 
     # if 'video_dir' not in opt.keys():
     #     detect()

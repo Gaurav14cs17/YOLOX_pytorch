@@ -6,13 +6,12 @@ from net.model_lib.csp_darknet import BaseConv, CSPLayer, DWConv
 __all__ = ['YOLOX_Head']
 
 
+
+
 class YOLOX_Head(nn.Module):
-    def __init__(self, num_classes=80, reid_dim=0, width=1.0, in_channels=[256, 512, 1024], act="silu",out_f = 256 ,
-                 depthwise=False):
+    def __init__(self, num_classes=80, reid_dim=0, width=1.0, in_channels=[256, 512, 1024], act="silu",out_f = 256 ,depthwise=False):
         super().__init__()
-
         self.out_f =out_f
-
         self.n_anchors = 1
         self.num_classes = num_classes
         self.reid_dim = reid_dim
@@ -30,12 +29,7 @@ class YOLOX_Head(nn.Module):
             self.reid_preds = nn.ModuleList()
 
         for i in range(len(in_channels)):
-            self.stems.append(
-                BaseConv(in_channels=int(in_channels[i] * width),
-                         out_channels=int(self.out_f * width),
-                         ksize=1,
-                         stride=1,
-                         act=act))
+            self.stems.append(DWConv(in_channels=int(in_channels[i] * width),out_channels=int(self.out_f * width),ksize=1,stride=1,act=act))
             self.cls_convs.append(
                 nn.Sequential(
                     *[

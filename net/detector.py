@@ -17,15 +17,14 @@ class Detector_shufflenet(nn.Module):
         out_depth = 72
         stage_out_channels = [-1, 24, 48, 96, 192]
         self.export_onnx = export_onnx
-        self.in_channel = [72, 72, 72]
+        self.in_channel = [72, 72 ]
         self.opt = opt
         self.backbone = ShuffleNetV2(stage_out_channels, load_param=False)
         self.neck = LightFPN(stage_out_channels[-3] + stage_out_channels[-2],
                             stage_out_channels[-2] + stage_out_channels[-1], stage_out_channels[-1], out_depth)
         self.head = YOLOX_Head(num_classes, width=1, in_channels=self.in_channel, out_f= 72 , depthwise=True)
 
-        self.loss = YOLOXLoss(opt.label_name, reid_dim=opt.reid_dim, id_nums=opt.tracking_id_nums, strides=opt.stride,
-                              in_channels=self.in_channel)
+        self.loss = YOLOXLoss(opt.label_name, reid_dim=opt.reid_dim, id_nums=opt.tracking_id_nums, strides=opt.stride,in_channels=self.in_channel)
 
         #self.backbone.init_weights()
         self.neck.init_weights()
@@ -34,11 +33,11 @@ class Detector_shufflenet(nn.Module):
     def forward(self, x, targets=None, show_time=False):
         if show_time:
             s1 = sync_time(x)
-        C1, C2, C3 = self.backbone(x)
+        C1 , C2, C3 = self.backbone(x)
 
-        S1, S2, S3 = self.neck(C1, C2, C3)
+        S1 , S2, S3 = self.neck(C1 , C2, C3)
 
-        yolo_outputs = self.head.forward([S1, S2, S3])
+        yolo_outputs = self.head.forward([ S2, S3])
 
         if show_time:
             s2 = sync_time(x)
@@ -138,16 +137,31 @@ class Detector(object):
 if __name__ == '__main__':
     from thop import profile
     from cfg.config import opt
+
     image = torch.randn(1, 3, 320, 320)
     model_obj = Detector_shufflenet(opt.num_classes, opt)
-    inputs = torch.rand(1, 3, 416, 416)
-    total_ops, total_params = profile(model_obj, (inputs,))
-    print("total_ops {}G, total_params {}M".format(total_ops / 1e9, total_params / 1e6))
-    # total_ops 1.646935637G, total_params 2.150905M
+    t = time.time()
+    img = model_obj(image)
+    for x in img:
+        print(x.shape)
+    print("Inf time : ",time.time() - t)
 
-    print("After \n")
-    inputs = torch.rand(1, 3, 416, 416)
-    model_obj.eval()
-    model_obj = fuse_model(model_obj)
-    total_ops, total_params = profile(model_obj, (inputs,))
-    print("total_ops {} G, total_params {} M".format(total_ops / 1e9, total_params / 1e6))
+
+    # torch.onnx.export(model_obj,                    #model being run
+    #                  image,                 # model input (or a tuple for multiple inputs)
+    #                  "test_yolox.onnx",               # where to save the model (can be a file or file-like object)
+    #                  export_params=True,        # store the trained parameter weights inside the model file
+    #                  opset_version=11,          # the ONNX version to export the model to
+    #                  do_constant_folding=True)
+
+    # inputs = torch.rand(1, 3, 416, 416)
+    # total_ops, total_params = profile(model_obj, (inputs,))
+    # print("total_ops {}G, total_params {}M".format(total_ops / 1e9, total_params / 1e6))
+    # # total_ops 1.646935637G, total_params 2.150905M
+    #
+    # print("After \n")
+    # inputs = torch.rand(1, 3, 416, 416)
+    # model_obj.eval()
+    # model_obj = fuse_model(model_obj)
+    # total_ops, total_params = profile(model_obj, (inputs,))
+    # print("total_ops {} G, total_params {} M".format(total_ops / 1e9, total_params / 1e6))

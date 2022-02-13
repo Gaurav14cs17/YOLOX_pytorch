@@ -51,7 +51,7 @@ opt.min_lr_ratio = 0.05
 opt.weight_decay = 5e-4
 opt.warmup_epochs = 5
 opt.depth_wise = False  # depth_wise conv is used in 'CSPDarknet-nano'
-opt.stride = [8, 16, 32]  # YOLOX down sample ratio: 8, 16, 32
+opt.stride = [ 16,  32]  # YOLOX down sample ratio: 8, 16, 32
 
 # train augments
 opt.degrees = 10.0  # rotate angle
@@ -66,14 +66,14 @@ opt.mixup_prob = 1.
 opt.data_num_workers = 1
 
 opt.momentum = 0.9
-opt.vis_thresh = 0.1  # inference confidence, used in 'predict.py'
-opt.load_model = ''
+opt.vis_thresh = 0.02  # inference confidence, used in 'predict.py'
+opt.load_model = 'D:/labs/object_detection_model/YOLOX_pytorch/cfg/exp/coco_shuffle_net/model_last.pth'
 opt.ema = True  # False, Exponential Moving Average
 opt.grad_clip = dict(max_norm=35, norm_type=2)  # None, clip gradient makes training more stable
 opt.print_iter = 1  # print loss every 1 iteration
 opt.val_intervals = 2  # evaluate val dataset and save best ckpt every 2 epoch
 opt.save_epoch = 1  # save check point every 1 epoch
-opt.resume = False  # resume from 'model_last.pth' when set True
+opt.resume = True  # resume from 'model_last.pth' when set True
 opt.use_amp = False  # True, Automatic mixed precision
 opt.cuda_benchmark = True
 opt.nms_thresh = 0.65  # nms IOU threshold in post process

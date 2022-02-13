@@ -88,7 +88,7 @@ class ShuffleNetV2(nn.Module):
                 input_channel = output_channel
             setattr(self, stage_names[idxstage], nn.Sequential(*stageSeq))
 
-        if load_param == False:
+        if load_param == True:
             self._initialize_weights()
         else:
             print("load param...")
@@ -99,6 +99,7 @@ class ShuffleNetV2(nn.Module):
         C1 = self.stage2(x)
         C2 = self.stage3(C1)
         C3 = self.stage4(C2)
+        #return C2 , C3
         return C1 , C2, C3
 
     def init_weights(self):

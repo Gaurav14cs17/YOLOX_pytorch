@@ -12,9 +12,7 @@ class SPPBottleneck(nn.Module):
         super().__init__()
         hidden_channels = in_channels // 2
         self.conv1 = BaseConv(in_channels, hidden_channels, 1, stride=1, act=activation)
-        self.m = nn.ModuleList(
-            [nn.MaxPool2d(kernel_size=ks, stride=1, padding=ks // 2) for ks in kernel_sizes]
-        )
+        self.m = nn.ModuleList([nn.MaxPool2d(kernel_size=ks, stride=1, padding=ks // 2) for ks in kernel_sizes])
         conv2_channels = hidden_channels * (len(kernel_sizes) + 1)
         self.conv2 = BaseConv(conv2_channels, out_channels, 1, stride=1, act=activation)
 
@@ -58,19 +56,70 @@ class Focus(nn.Module):
         return self.conv(x)
 
 
+class DWConvblock(nn.Module):
+    def __init__(self, input_channels, output_channels, size):
+        super(DWConvblock, self).__init__()
+        self.size = size
+        self.input_channels = input_channels
+        self.output_channels = output_channels
+
+        self.block = nn.Sequential(
+            nn.Conv2d(output_channels, output_channels, size, 1, 2, groups=output_channels, bias=False),
+            nn.BatchNorm2d(output_channels),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(output_channels, output_channels, 1, 1, 0, bias=False),
+            nn.BatchNorm2d(output_channels),
+
+            nn.Conv2d(output_channels, output_channels, size, 1, 2, groups=output_channels, bias=False),
+            nn.BatchNorm2d(output_channels),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(output_channels, output_channels, 1, 1, 0, bias=False),
+            nn.BatchNorm2d(output_channels),
+        )
+
+    def forward(self, x):
+        x = self.block(x)
+        return x
+
+
+class depthwise_conv(nn.Module):
+    def __init__(self, nin, kernels_per_layer):
+        super(depthwise_conv, self).__init__()
+        self.depthwise = nn.Conv2d(nin, nin * kernels_per_layer, kernel_size=(3, 3), padding=1, groups=nin)
+
+    def forward(self, x):
+        out = self.depthwise(x)
+        return out
+
+
+class pointwise_conv(nn.Module):
+    def __init__(self, nin, nout):
+        super(pointwise_conv, self).__init__()
+        self.pointwise = nn.Conv2d(nin, nout, kernel_size=(1, 1))
+
+    def forward(self, x):
+        out = self.pointwise(x)
+        return out
+
+
+class depthwise_separable_conv(nn.Module):
+    def __init__(self, nin, kernels_per_layer, nout):
+        super(depthwise_separable_conv, self).__init__()
+        self.depthwise = nn.Conv2d(nin, nin * kernels_per_layer, kernel_size=(3,3), padding=1, groups=nin)
+        self.pointwise = nn.Conv2d(nin * kernels_per_layer, nout, kernel_size=(1,1))
+
+    def forward(self, x):
+        out = self.depthwise(x)
+        out = self.pointwise(out)
+        return out
+
+
 class DWConv(nn.Module):
     """Depthwise Conv + Conv"""
-
-    def __init__(self, in_channels, out_channels, ksize, stride=1, act="silu"):
+    def __init__(self, in_channels = 512 , out_channels = 1024 , ksize = 1, stride=1, act="silu"):
         super().__init__()
-        self.dconv = BaseConv(
-            in_channels, in_channels, ksize=ksize,
-            stride=stride, groups=in_channels, act=act
-        )
-        self.pconv = BaseConv(
-            in_channels, out_channels, ksize=1,
-            stride=1, groups=1, act=act
-        )
+        self.dconv = BaseConv(in_channels, in_channels, ksize=ksize, stride=stride, groups=in_channels, act=act)
+        self.pconv = BaseConv(in_channels, out_channels, ksize=1, stride=1, groups=1, act=act)
 
     def forward(self, x):
         x = self.dconv(x)
@@ -79,10 +128,7 @@ class DWConv(nn.Module):
 
 class Bottleneck(nn.Module):
     # Standard bottleneck
-    def __init__(
-            self, in_channels, out_channels, shortcut=True,
-            expansion=0.5, depthwise=False, act="silu"
-    ):
+    def __init__(self, in_channels, out_channels, shortcut=True, expansion=0.5, depthwise=False, act="silu"):
         super().__init__()
         hidden_channels = int(out_channels * expansion)
         Conv = DWConv if depthwise else BaseConv
@@ -100,10 +146,7 @@ class Bottleneck(nn.Module):
 class CSPLayer(nn.Module):
     """C3 in yolov5, CSP Bottleneck with 3 convolutions"""
 
-    def __init__(
-            self, in_channels, out_channels, n=1,
-            shortcut=True, expansion=0.5, depthwise=False, act="silu"
-    ):
+    def __init__(self, in_channels, out_channels, n=1, shortcut=True, expansion=0.5, depthwise=False, act="silu"):
         """
         Args:
             in_channels (int): input channels.
@@ -116,10 +159,7 @@ class CSPLayer(nn.Module):
         self.conv1 = BaseConv(in_channels, hidden_channels, 1, stride=1, act=act)
         self.conv2 = BaseConv(in_channels, hidden_channels, 1, stride=1, act=act)
         self.conv3 = BaseConv(2 * hidden_channels, out_channels, 1, stride=1, act=act)
-        module_list = [
-            Bottleneck(hidden_channels, hidden_channels, shortcut, 1.0, depthwise, act=act)
-            for _ in range(n)
-        ]
+        module_list = [Bottleneck(hidden_channels, hidden_channels, shortcut, 1.0, depthwise, act=act) for _ in range(n)]
         self.m = nn.Sequential(*module_list)
 
     def forward(self, x):
@@ -137,6 +177,8 @@ def get_activation(name="silu", inplace=True):
         module = nn.ReLU(inplace=inplace)
     elif name == "lrelu":
         module = nn.LeakyReLU(0.1, inplace=inplace)
+    elif name == 'hard_swish':
+        module = nn.Hardswish()
     else:
         raise AttributeError("Unsupported act type: {}".format(name))
     return module
@@ -144,20 +186,11 @@ def get_activation(name="silu", inplace=True):
 
 class BaseConv(nn.Module):
     """A Conv2d -> Batchnorm -> silu/leaky relu block"""
-
     def __init__(self, in_channels, out_channels, ksize, stride, groups=1, bias=False, act="silu"):
         super().__init__()
         # same padding
         pad = (ksize - 1) // 2
-        self.conv = nn.Conv2d(
-            in_channels,
-            out_channels,
-            kernel_size=ksize,
-            stride=stride,
-            padding=pad,
-            groups=groups,
-            bias=bias,
-        )
+        self.conv = nn.Conv2d(in_channels, out_channels, kernel_size=ksize, stride=stride, padding=pad, groups=groups,bias=bias, )
         self.bn = nn.BatchNorm2d(out_channels)
         self.act = get_activation(act, inplace=True)
 
@@ -166,5 +199,3 @@ class BaseConv(nn.Module):
 
     def fuseforward(self, x):
         return self.act(self.conv(x))
-
-
