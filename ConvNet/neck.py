@@ -129,7 +129,7 @@ class FPN(nn.Module):
 
         self.c3out = Conv(in_channels[-1], in_channels[-1], 3, 2, act=act)
         self.c3out_csp = CSPLayer(in_channels[-2], in_channels[-1], n=1, depthwise=depthwise)
-        self.conv_n3 = Conv(in_channels[-1], in_channels[-1], 3, 2,padding=0, act=act)
+        self.conv_n3 = Conv(in_channels[-1], in_channels[-1], 1 , stride = 2,padding=0, act=act)
 
 
     def forward(self, features):
@@ -162,6 +162,7 @@ class FPN(nn.Module):
         n3_out = self.c3out(n2_out)
         n3_out = torch.cat([n3_out , c3_out], dim=1)
         n3_out = self.c3out_csp(n3_out)
+        #print(n3_out.shape)
         conv_n3 = self.conv_n3(n3_out)
 
         return [conv_n0 , conv_n1 , conv_n2 , conv_n3 ]
@@ -173,7 +174,7 @@ class FPN(nn.Module):
 if __name__ == '__main__':
     model_obj = FPN()
     image_list = []
-    w, h = 40,40
+    w, h = 32,32
     for _ in range(4):
         image = torch.randn((1, 64, w, h))
         w= w//2
