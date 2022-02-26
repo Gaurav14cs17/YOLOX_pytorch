@@ -2,7 +2,7 @@ from model_utils.model_block import *
 
 
 class Model(nn.Module):
-    def __init__(self, in_channels=3, use_block='ConNextBlock'):
+    def __init__(self, in_channels=3, use_block='mixer'):
         super(Model, self).__init__()
         self.conv1 = nn.Conv2d(in_channels=in_channels, out_channels=32, kernel_size=(3, 3), stride=(2, 2), padding=1)
         self.conv11 = nn.Conv2d(in_channels=32, out_channels=64, kernel_size=(3, 3), stride=(3, 3), padding=1)
